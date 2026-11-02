@@ -24,6 +24,7 @@ Introduces key concepts from multi-agent systems research and explains how each 
 13. [Multiagent Learning and Coordination](13-multiagent-learning.md): Markov games, why multiagent learning is hard, learning approaches, equilibrium selection (conventions, roles, consensus Q-learning, team rewards), coordination graphs and sparse coordination, credit assignment and difference rewards, and evolutionary views (Sadhu and Konar, Vlassis Ch. 4 and 7, Weiss Ch. 10).
 14. [Context Engineering](14-context-engineering.md): the context window as a constraint, assembling context by retrieval and memory, context across agents, compaction, summarisation and thrashing, and token cost and latency (Rothman, Dibia, O'Brien).
 15. [Evaluating Agent Systems](15-evaluating-agent-systems.md): why classical evaluation does not transfer, trajectories, evaluation sets and pass rates, LLM judges and their bias, the evidence on multi-agent designs, and change control for prompts, models, and data (Dibia, O'Brien, Rothman).
+16. [Agent-Oriented Programming and Platforms](16-agent-programming-and-platforms.md): the AOSE and agentic AI communities, agent languages and libraries, agents versus actors, the environment as artifacts, protocols as programs, exceptions and accountability, LLMs inside agent platforms, and Agentic Mesh as a 2026 industry platform (Collier, Mascardi, and Ricci; Broda and Broda).
 
 ## Backlog
 

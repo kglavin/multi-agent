@@ -26,12 +26,14 @@ Status as of 2026-11-02. Detail for each item lives in the linked section README
 13. [13 Multiagent Learning and Coordination](learn/13-multiagent-learning.md): multiagent reinforcement learning, equilibrium selection, and sparse coordination (Sadhu and Konar, Vlassis Ch. 4 and 7, Weiss Ch. 10).
 14. [14 Context Engineering](learn/14-context-engineering.md): context windows, retrieval, context across agents, compaction, and token cost (Rothman, Dibia, O'Brien).
 15. [15 Evaluating Agent Systems](learn/15-evaluating-agent-systems.md): trajectories, evaluation sets, LLM judges, the evidence on multi-agent designs, and change control (Dibia, O'Brien, Rothman).
+16. [16 Agent-Oriented Programming and Platforms](learn/16-agent-programming-and-platforms.md): agent languages, actors, environments, protocols, accountability, LLMs in agent platforms, and Agentic Mesh (Collier et al., Broda and Broda).
 - LLM-era sections added to [05](learn/05-trust-and-reputation.md) (section 8, content as instructions), [07](learn/07-agent-communication.md) (section 7, LLM senders), and [08](learn/08-working-together.md) (section 9, stopping and human control).
 
 ### Research
 
 - Backlog R1 to R13 recorded in [research/README.md](research/README.md).
 - R11 viability pass: [r11-browser-agent/](research/r11-browser-agent/README.md). Result: viable. The main unknown is whether `ractor_cluster` compiles to WebAssembly.
+- Prior art from agent platforms (P1 to P8) added to R11 for R11 and R12. R7 linked to protocol-based refusal in learn/16 section 5.
 
 ## To Do
 

@@ -21,5 +21,7 @@ Explores multi-agent systems (MAS): the classical theory and how it applies to a
 - Denis Rothman, *Context Engineering for Multi-Agent Systems*, 2025.
 - Victor Dibia, *Designing Multi-Agent Systems: Principles, Patterns, and Implementation*, 2025.
 - Tim O'Brien, *Building Complex Multi-Agent Systems Using Patterns*, 2026.
+- Rem Collier, Viviana Mascardi, and Alessandro Ricci (eds.), *Agents and Multi-Agent Systems Development: Platforms, Toolkits, Technologies*, 2026.
+- Eric Broda and Davis Broda, *Agentic Mesh: The GenAI-Powered Autonomous Agent Ecosystem*, 2026.
 
 PDFs and EPUBs are kept locally and not committed (`*.pdf` and `*.epub` are gitignored).
