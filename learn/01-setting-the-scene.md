@@ -1,5 +1,21 @@
 # 01 Setting the Scene
 
+## Summary
+
+A multi-agent system (MAS) is a set of agents that act on their own and interact to reach goals, often for owners whose interests differ. The field has studied such systems since the 1980s around two problems: how to build one agent that can act without step-by-step instruction (the micro problem), and how to make agents cooperate, coordinate, and negotiate (the macro problem). Large language models have made agents practical to build, so these research questions are now engineering questions.
+
+This topic sets out the field from five views, one per source: where MAS came from and the two problems (Wooldridge, sections 1 to 6), agents as rational decision makers (Vlassis, section 7), what makes an agent intelligent and how MAS vary (Weiss, section 8), agents built around an LLM (Sayfan, section 9), and MAS as a control problem (Nagahara, Azuma, and Ahn, section 10).
+
+Its main conclusions:
+
+1. An LLM agent fits the classical definition of an agent: a model running in a loop with tools, given a goal rather than a script.
+2. Most multi-agent LLM systems are teams with one owner and one goal. By the classical definition, they are closer to distributed systems. The harder case, agents serving different owners, arrived in practice in 2026 through open agent networks, before trust and negotiation were engineered for it.
+3. An agent decides whether to act on a request. A subagent that always runs when called is closer to an object.
+4. LLMs move decision making out of engineered structures into the model, and add a reason to split work that the classical texts lack: the limit of one context window.
+5. Communication topology is a design choice. A central orchestrator buys control at the cost of a bottleneck. Control theory can prove that cooperative agents converge, while LLM systems rely on testing.
+
+Later topics take each thread further: agent architectures in [02](02-agent-architectures.md), communication in [07](07-agent-communication.md), cooperation in [08](08-working-together.md), self-interested agents in [09](09-strategic-interaction.md) to [12](12-bargaining-and-argumentation.md), and LLM-specific engineering in [14](14-context-engineering.md) and [15](15-evaluating-agent-systems.md).
+
 Sources:
 
 - Wooldridge, *An Introduction to MultiAgent Systems*, 2nd ed., 2009, Chapter 1 (sections 1-6).
