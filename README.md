@@ -23,5 +23,7 @@ Explores multi-agent systems (MAS): the classical theory and how it applies to a
 - Tim O'Brien, *Building Complex Multi-Agent Systems Using Patterns*, 2026.
 - Rem Collier, Viviana Mascardi, and Alessandro Ricci (eds.), *Agents and Multi-Agent Systems Development: Platforms, Toolkits, Technologies*, 2026.
 - Eric Broda and Davis Broda, *Agentic Mesh: The GenAI-Powered Autonomous Agent Ecosystem*, 2026.
+- Uri Wilensky and William Rand, *An Introduction to Agent-Based Modeling: Modeling Natural, Social, and Engineered Complex Systems with NetLogo*, 2015.
+- Juan C. Burguillo, *Self-organizing Coalitions for Managing Complexity*, 2018.
 
 PDFs and EPUBs are kept locally and not committed (`*.pdf` and `*.epub` are gitignored).

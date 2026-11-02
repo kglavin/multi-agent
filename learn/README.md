@@ -9,6 +9,8 @@ Introduces key concepts from multi-agent systems research and explains how each 
 
 ## Contents
 
+Start with the [Map](00-map.md): a one-page index from practices and failures in LLM agent systems to the concepts and sections that cover them.
+
 1. [Setting the Scene](01-setting-the-scene.md): origins of MAS, the micro/macro problems, intelligent agents and environment properties, team versus self-interested MAS, and how agents and MAS differ from objects, single agents, and related fields (Wooldridge, Vlassis, and Weiss, Chapter 1), and the LLM-era view: agent loop, components, architectures, and protocols (Sayfan, Part 1), and the control-theory view of topology and guarantees (Nagahara, Azuma, and Ahn).
 2. [Agent Architectures](02-agent-architectures.md): logic-based, reactive, BDI, and layered architectures, and where LLM agents fit among them (Weiss Ch. 1 section 3).
 3. [Agent Landscape 2026](03-agent-landscape-2026.md): dated snapshot of vendor agent products, OpenClaw, and the arrival of open multi-agent systems, mapped to the concepts in 01 and 02.
@@ -25,6 +27,7 @@ Introduces key concepts from multi-agent systems research and explains how each 
 14. [Context Engineering](14-context-engineering.md): the context window as a constraint, assembling context by retrieval and memory, context across agents, compaction, summarisation and thrashing, and token cost and latency (Rothman, Dibia, O'Brien).
 15. [Evaluating Agent Systems](15-evaluating-agent-systems.md): why classical evaluation does not transfer, trajectories, evaluation sets and pass rates, LLM judges and their bias, the evidence on multi-agent designs, and change control for prompts, models, and data (Dibia, O'Brien, Rothman).
 16. [Agent-Oriented Programming and Platforms](16-agent-programming-and-platforms.md): the AOSE and agentic AI communities, agent languages and libraries, agents versus actors, the environment as artifacts, protocols as programs, exceptions and accountability, LLMs inside agent platforms, and Agentic Mesh as a 2026 industry platform (Collier, Mascardi, and Ricci; Broda and Broda).
+17. [Agents in Complex Systems](17-agents-in-complex-systems.md): emergence and tipping points, monoculture and El Farol, strong and weak self-organisation, networks and hubs, coalitions under real constraints, reputation with partner switching, and studying a population of agents (Wilensky and Rand, Burguillo).
 
 ## Backlog
 
