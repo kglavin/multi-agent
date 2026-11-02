@@ -90,3 +90,21 @@ def test_run_experiment_records_budget_stop(tmp_path):
     configs = {"single": single(StubModel(), "sys", [ADD])}
     results = run_experiment(tmp_path, [Case("c1", "q", "stub answer")], configs, runs=1, max_tokens=1)
     assert results[0]["stopped"] and results[0]["score"] == 0.0
+
+
+def test_report_draws_delegation_and_charts(tmp_path):
+    from harness.report import build_report, sequence_diagram
+
+    model = StubModel(script=[
+        ("", [ToolCall("1", "delegate", {"task": "add 2 and 2"})]),
+        ("", [ToolCall("2", "add", {"a": 2, "b": 2})]),
+        ("4", []),
+        ("4", []),
+    ])
+    configs = {"C3": orchestrator(model, "orch", "worker", [ADD])}
+    run_experiment(tmp_path, [Case("c1", "2+2?", "4")], configs, runs=1)
+    report = build_report(tmp_path)
+    assert report.count("```mermaid") == 4
+    diagram = sequence_diagram([json.loads(l) for l in (tmp_path / "log.jsonl").read_text().splitlines()])
+    assert 'a_orchestrator->>a_worker_1: delegate "add 2 and 2"' in diagram
+    assert 'a_worker_1-->>a_orchestrator: "4"' in diagram
