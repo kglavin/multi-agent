@@ -6,6 +6,7 @@ Mini projects that investigate a question or try a technique.
 
 - One folder per project (e.g. `contract-net-llm/`).
 - Each project has a `README.md` stating the question, the setup, and the result.
+- LLM experiments use the shared [harness](harness/README.md).
 
 ## Backlog
 
