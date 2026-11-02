@@ -3,6 +3,7 @@
 Sources:
 
 - Weiss (ed.), *Multiagent Systems*, 2nd ed., 2013, Chapter 9 "Trust and Reputation in Multiagent Systems" by Jordi Sabater-Mir and Laurent Vercouter. Primary source for this topic.
+- For section 8: Rothman, *Context Engineering for Multi-Agent Systems*, 2025, Chapters 7, 8, and 10. Dibia, *Designing Multi-Agent Systems*, 2025, Chapter 13 section 13.4. O'Brien, *Building Complex Multi-Agent Systems Using Patterns*, 2026, Chapters 5 and 7.
 
 [04](04-multiagent-organisations.md) covered control through organisations and institutions: rules stated outside the agents and enforced by the system. This topic covers the other kind of control in an open MAS, where agents watch and judge each other. [03 section 3](03-agent-landscape-2026.md#3-open-self-interested-mas-arrives) recorded what happened in 2026 when agents with different owners met without it.
 
@@ -184,6 +185,53 @@ The chapter's conclusions list three directions that apply directly to LLM agent
 
 [R10](../research/README.md) on the research backlog studies trust in skill supply chains.
 
+## 8. Content as Instructions
+
+This section draws on the three LLM-era books listed under Sources. Sabater-Mir and Vercouter do not cover it, because the problem did not exist for classical agents.
+
+### 8.1 Why it is new
+
+The attacks in section 5 are lies told within the rules of communication. A dishonest agent sends a false rating or a false claim, and the receiver decides whether to believe it. The content is never executed as the receiver's own goal, because a KQML or FIPA message keeps the act type (the performative) apart from the content ([07 section 4](07-agent-communication.md#4-agent-communication-languages)).
+
+An LLM agent has one channel. Instructions, retrieved documents, tool results, and other agents' messages all arrive as text in the same context window. Text that reads as an instruction can be followed as one. This is *prompt injection*. O'Brien calls it the GenAI equivalent of SQL injection.
+
+- *Direct* injection comes from the user's own input.
+- *Indirect* injection comes from content the agent fetches: a web page, an email, a file, or a retrieved document. Rothman cites Greshake et al. (2023) for the case where poisoned text enters a vector store and is later retrieved into a prompt.
+
+### 8.2 Defences in current practice
+
+| Defence | Source | Limits stated or shown |
+|---|---|---|
+| Mark untrusted input with delimiters | O'Brien Ch 7 | Not reliable on its own (O'Brien) |
+| Block known phrases with a list of regular expressions ("ignore previous instructions", "act as") | Rothman Ch 7 | Paraphrase or another language bypasses it. Rothman applies it only to retrieved facts, not to the user goal, the style templates in the system prompt, or other agents' outputs. In Chapter 8, it blocks a legitimate witness quote. |
+| A separate model call classifies input as adversarial | O'Brien Ch 7 | The classifier is itself an LLM |
+| A moderation classifier on the user goal and on the final output | Rothman Ch 8 | Shown on one benign run. Intermediate content is not checked. |
+| Least privilege per component, so a component cannot write whatever it is told to | O'Brien Ch 7, Dibia Ch 13 | Limits damage rather than preventing injection |
+| Document-level access control in the vector store | O'Brien Ch 7 | Stops one user's documents entering another user's prompt |
+| Rule of Two: in one session, an agent has at most two of (A) untrusted input, (B) access to sensitive systems or data, and (C) the ability to change state or communicate externally. All three require human approval. | Dibia Ch 13, citing Meta AI (2025) | Cited, not tested |
+
+Dibia adds a problem older security models did not face. Isolation between services assumed the services had no goals. An agent blocked by a failing mail server may search the file system, find another service's credentials, and use them. His rule is to assume an agent will find and try to use any resource it can reach.
+
+### 8.3 Leakage
+
+O'Brien treats everything in the context window as potentially visible to the user: the system prompt, retrieved documents, history, and tool definitions. He treats the system prompt as semi-public, not secret. Personal data is replaced with consistent pseudonyms before the model call and restored afterwards.
+
+In classical MAS, an agent chooses what to reveal. An auction bidder decides whether to disclose its valuation ([11](11-coalitions-and-auctions.md)). An LLM agent cannot reliably withhold anything in its window.
+
+### 8.4 Mapping to this chapter
+
+The defences fit the trust model of section 3:
+
+- *Evaluation before decision.* Section 3.3 separates evaluating a source from deciding to rely on it. Prompt injection works because LLM agents skip the decision. A delimiter or a classifier is a crude evaluation step.
+- *Sources of images.* Section 3.2 weights information by where it came from. Rothman proposes, but does not build, separate stores for content that is adversarial by nature, such as witness testimony, with a looser policy. That is trust per source.
+- *Soft and hard security.* Least privilege and the Rule of Two are hard security: they limit what any content can cause. Classifiers and blocklists are soft security: they adapt and they miss.
+
+**Agentic AI relevance.**
+
+- Every channel into the window is an attack surface, including other agents' outputs. In a multi-agent system, one agent that reads untrusted content can pass an injected instruction to an agent with more privileges.
+- Phrase lists and classifiers reduce injection but cannot prevent it. Limit what an agent can do when it handles untrusted content, as the Rule of Two does.
+- An agent cannot keep secrets from its own context. Do not put in the window anything the user of that agent must not see.
+
 ## Key Takeaways
 
 1. Hard security proves who sent something and that it was not altered. It cannot prove the content is true or the service honest. Trust and reputation cover that gap through soft security: adapting rather than preventing.
@@ -193,3 +241,4 @@ The chapter's conclusions list three directions that apply directly to LLM agent
 5. Centralised reputation, as in skill and agent registries, helps newcomers but is a single point of trust and manipulation.
 6. The classical attacks are the attacks on agent ecosystems: gamed rankings, Sybil accounts, whitewashed republishing, and malicious updates that exploit reputation lag.
 7. Agents need memory of whom and what they have trusted, and how that turned out. Today that lives only in what the user writes down.
+8. Classical agents kept instructions apart from content. LLM agents read both in one window, so any text they read can act as an instruction. Filters reduce prompt injection. Limiting what an agent handling untrusted content can do contains it.

@@ -4,6 +4,7 @@ Sources:
 
 - Wooldridge, *An Introduction to MultiAgent Systems*, 2nd ed., 2009, Chapter 8 "Working Together". Primary source for the classical concepts.
 - Sayfan, *Design Multi-Agent AI Systems Using MCP and A2A*, 2026, Chapter 8 (orchestration patterns, decomposition, conflict resolution) and Chapter 10 (failure modes and diagnosing coordination failures).
+- For section 9: Dibia, *Designing Multi-Agent Systems*, 2025, Chapter 2 section 2.5, Chapter 3, Chapter 4 sections 4.12 and 4.13, Chapter 7 section 7.2, and Chapter 15. O'Brien, *Building Complex Multi-Agent Systems Using Patterns*, 2026, Chapters 8 and 9. Rothman, *Context Engineering for Multi-Agent Systems*, 2025, Chapter 2.
 
 [07](07-agent-communication.md) covered how agents talk. This topic covers how a team of agents shares out a problem, shares results, and keeps out of each other's way. It is the cooperative side of the macro problem from [01 section 3](01-setting-the-scene.md#3-the-two-central-problems-micromacro). Self-interested agents are left for a later topic.
 
@@ -294,6 +295,60 @@ Sayfan's remedies come from distributed systems rather than the MAS literature: 
 - Fabricated success is a broken convention. A team member that cannot reach its goal must say so. LLM agents are not built with that duty, so it must be stated and checked.
 - Distributed tracing gives the observability that coherence and coordination measures need. A trace across all agents shows duplicated work, conflicts, and lost handoffs directly.
 
+## 9. Stopping and Human Control
+
+This section draws on the LLM-era books listed under Sources. It covers two decisions the classical sources leave to the agent's design: when to stop, and when to hand control to a human.
+
+### 9.1 Why stopping is new
+
+A BDI agent stops pursuing an intention when its commitment strategy says so ([02 section 3.2](02-agent-architectures.md#32-commitment-versus-reconsideration)). A team stops when its joint persistent goal is mutually believed achieved or impossible (section 5.2). Both are designed rules.
+
+An LLM agent's loop ends when the model returns a reply with no tool call. Dibia says the model has no reliable sense of being done. Multi-agent conversations either run on, paying for every call, or stop early with the task incomplete. O'Brien makes the same point from the other side: BDI deliberation ends by construction, and an LLM loop does not, so it needs a cap.
+
+### 9.2 Stop conditions
+
+Dibia treats termination as a component to design. His conditions:
+
+| Family | Conditions |
+|---|---|
+| Budget | Maximum messages, maximum tokens, timeout, maximum iterations as a final safety net |
+| Semantic | A keyword in the output ("TERMINATE", "APPROVED"), a task-status tool the agent must call with complete or incomplete and a reason, or a separate judge model that reads the evidence and sends the agent back if it stops too early |
+| External | A human or another system signals the end, or the agent hands off |
+
+Conditions combine with "any of" and "all of". His robustness order, weakest first, is criteria stated only in the prompt, then a deterministic check against a to-do list, then a judge model. His named mistake is stopping on a keyword the prompt never tells the agent to emit.
+
+Others in current practice:
+
+- O'Brien caps a ReAct loop at ten steps. A loop that reaches the cap raises an alert and its message is quarantined as a runaway.
+- Rothman caps revisions after a failed validation at two.
+- Sayfan caps the number of exchanges in a collaborative pattern (section 7).
+
+### 9.3 Stopping interacts with context
+
+Dibia's one measurement of a judge that sends the agent back shows a side effect. With a small context budget, adding the judge raised calls from 32 to 50 and repeated file reads from 15 to 55 percent, and the judged quality fell from 5.5 to 4.0. The judge correctly found the work incomplete. The agent had already lost its recent work to context compaction, so it started again. [14 section 4.3](14-context-engineering.md#43-thrashing) has the full table. A stop rule cannot be tuned apart from the context budget.
+
+### 9.4 Errors inside the loop
+
+O'Brien routes errors by kind. A tool that rejects bad input returns an error result that the model sees as an observation and can reason about. An infrastructure failure goes to retry queues and never reaches the model. The book does not address one difference. A classical "poison" message fails every time it is replayed, but a malformed model output may succeed if the same input is sampled again. For model output, the line between a transient and a permanent failure is a probability.
+
+### 9.5 Human control
+
+Dibia sets out how an agent hands control to a human:
+
+- *Approval tiers by cost of action.* Low-cost actions run automatically. Medium-cost actions run and notify. High-cost actions wait for approval. Thresholds are set by the user.
+- *Rule-based or model-judged escalation.* Fixed rules (transactions over a set amount, legal or medical topics, three failed attempts) or the agent's own judgement of risk.
+- *Exit and resume.* When a tool needs approval, the agent stops, returns the request, and saves its full state. Approval starts a new run from that state, on any server.
+- *Interruption.* Pause, resume, or cancel at any point, and add requirements without stopping.
+- *Calibration.* An approval rate above 95 percent suggests the agent is asking too often.
+
+Dibia gives no user study for these. The classical name for this field is *adjustable autonomy*, where control passes between agent and human by strategy. None of the three books cites it.
+
+**Agentic AI relevance.**
+
+- A team of LLM agents needs the convention from section 5.2: when a member may stop, and the duty to report why. Stop conditions and task-status tools are a partial, per-agent version.
+- Prefer deterministic stop checks, such as a to-do list or a test result, over a model's own claim to be done. Use a judge only with enough context budget for the agent to continue.
+- Whether a loop converges, oscillates, or runs away should be measured, not only capped. [R13](../research/README.md) on the research backlog tests stopping rules against such a measure.
+
 ## Key Takeaways
 
 1. Multi-agent LLM systems owned by one party are cooperative distributed problem solvers working under the benevolence assumption. The classical CDPS techniques apply directly.
@@ -305,3 +360,4 @@ Sayfan's remedies come from distributed systems rather than the MAS literature: 
 7. Teamwork needs conventions: when a member may drop its part, and the duty to tell the others when it does. Their absence explains partial completion and fabricated success.
 8. Social laws designed offline prevent conflicts by making them impossible, at a cost in flexibility. Finding a useful one is NP-complete in general.
 9. The coordination failures reported in current practice map onto classical concepts. Current remedies come from distributed systems and contain failures. The classical concepts aim to prevent them.
+10. An LLM agent has no reliable sense of being done, so stopping must be designed: budgets, deterministic checks, judges, and caps. Stop rules interact with the context budget. Handing control to a human by cost of action is adjustable autonomy, which current practice does not cite.

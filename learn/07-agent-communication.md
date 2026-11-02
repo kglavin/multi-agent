@@ -6,6 +6,7 @@ Sources:
 - Weiss (ed.), *Multiagent Systems*, 2nd ed., 2013, Chapter 3 "Agent Communication" by Amit K. Chopra and Munindar P. Singh.
 - Sayfan, *Design Multi-Agent AI Systems Using MCP and A2A*, 2026, Chapter 7 (MCP) and Chapter 8 (multi-agent design and A2A).
 - The MCP specification (version 2026-07-28) and the A2A specification (version 1.0.0), checked on 1 November 2026, where they differ from or add to Sayfan.
+- For section 7: O'Brien, *Building Complex Multi-Agent Systems Using Patterns*, 2026, Chapters 7, 9, and 10. Dibia, *Designing Multi-Agent Systems*, 2025, Chapters 4 and 14. Rothman, *Context Engineering for Multi-Agent Systems*, 2025, Chapters 2, 5, 7, and 8.
 
 [01 section 9.8](01-setting-the-scene.md#98-protocols) named MCP and A2A, and [04](04-multiagent-organisations.md) and [05](05-trust-and-reputation.md) both stopped at the point where agents need a shared language. This topic covers how agents talk: the classical theory of communication as action, the languages built on it, the debate over what a message means, and how MCP and A2A compare.
 
@@ -301,6 +302,41 @@ Sayfan does not mention speech acts, KQML, FIPA, contract net, or commitments. H
 - MCP changed its connection model between Sayfan's examples and the current specification. KQML's fluid performative set damaged interoperability, so fast-moving protocol versions are a risk to watch.
 - [R7](../research/README.md) explores an agent reached over A2A that can decline or counter a request. Sections 2 and 5 give it vocabulary: refuse, agree, propose, and counter offer.
 
+## 7. When the Sender Is a Language Model
+
+Sections 4 and 5 assumed a sender whose messages follow from what it believes or what it has committed to. This section draws on the three LLM-era books listed under Sources for what changes when the sender is an LLM.
+
+### 7.1 Assertions without beliefs
+
+FIPA's `inform` requires the sender to believe the content (section 4.2). O'Brien's Chapter 10 states that an LLM predicts the next token and does not "consult beliefs". He lists calibrated confidence among the things LLMs cannot reliably provide, and calls hallucination a consequence of how models are trained, "not a bug to be patched". On that account, an LLM agent cannot satisfy the feasibility precondition, and mentalist semantics fail for it twice: its states cannot be inspected (section 5.2), and it may have no belief behind what it asserts.
+
+O'Brien's practical rule follows: "Don't use data produced by GenAI with your other IT systems." He states it as absolute. His own Chapter 9 lets model output choose tool calls that write to other systems, and his Chapter 10 names extracting structured data from text as a real strength. The workable reading is a boundary: validate model output, and record that it came from a model, before another system relies on it.
+
+Commitment semantics (section 5.3) survive. A commitment is defined by the messages exchanged, not by the sender's mind. An LLM agent that informs can be held to what it said, whether or not it believed it.
+
+### 7.2 Typed content
+
+Dibia forces every control decision into a schema: which agent speaks next, the plan, and whether a step succeeded. The classical counterpart is the content language (KIF, FIPA SL). A schema makes content parseable, not true. Dibia's claim in Chapter 14 that structured outputs "eliminated parsing errors and hallucinations" holds for the first and not the second.
+
+Rothman shows the cost of not agreeing on content. His agents return results under different keys (`blueprint_json`, `facts`, `summary`, `answer_with_sources`). The Writer agent grows a branch for each new producer. His "MCP" messages are a Python dictionary with four keys (protocol version, sender, content, metadata). They are not the Model Context Protocol of section 6.1, and they have no performative, language, or ontology field. That is less structure than KQML had.
+
+### 7.3 Saying "I do not know"
+
+In Rothman's Chapter 7 and 8 runs, the Researcher agent finds nothing relevant and says so. The statement is passed to the Writer as ordinary facts, and the pipeline continues. In Chapter 7 the Writer turns it into a narrative about the missing information. In Chapter 8, asked for a trial opening statement the knowledge base cannot support, the Writer produces one with invented details. Rothman notes that warnings could become exceptions in production, but presents the Chapter 8 run as confirming the engine's honesty.
+
+FIPA puts this outcome in the envelope: `failure` after an agreed task, or `refuse` before it (section 4.2). A2A has the `FAILED` and `REJECTED` task states (section 6.2). When an abstention is part of the act type, the next agent and the orchestrator can act on it. When it is part of the content, it is one more piece of text the next model may ignore. This is the fabricated success of [08 section 8](08-working-together.md#8-coordination-failures) seen from the receiving side.
+
+### 7.4 Where a claim came from
+
+Rothman tags each retrieved chunk with its file name and appends every retrieved file name to the answer as a source. Answers then cite files that did not support them, including one where the model wrote "Sources: None". Provenance is per file, not per page or per claim. Citing honestly needs each claim aligned to the passage that supports it. The classical counterparts are justification in truth-maintenance systems and the source of a trust image ([05 section 3.2](05-trust-and-reputation.md#32-sources-of-images)).
+
+**Agentic AI relevance.**
+
+- Treat an LLM agent's assertions as claims to be checked, not as beliefs it holds. Its stated confidence cannot set a trust value ([05](05-trust-and-reputation.md)) or a bid ([08 section 3](08-working-together.md#3-task-sharing-the-contract-net)).
+- Put outcomes such as refusal, failure, and "nothing found" in a typed field the orchestrator reads, not in free text.
+- Agree content schemas between agents as the classical languages agreed content languages and ontologies. A schema check catches malformed content. It does not catch false content.
+- Commitments, defined by observable messages, are the one classical semantics that applies to LLM agents as they are.
+
 ## Key Takeaways
 
 1. Agents influence each other through communicative actions. They cannot invoke each other like methods. MCP tool calls are method invocations, and A2A requests go to agents that can reject them.
@@ -311,3 +347,4 @@ Sayfan does not mention speech acts, KQML, FIPA, contract net, or commitments. H
 6. Commitment semantics define meaning by who owes what to whom. They allow flexible message orders and can be checked from observed messages. No current agent protocol uses them.
 7. An agent cannot commit another agent. An orchestrator promising work on a subagent's behalf is a known antipattern.
 8. A2A moved the type of a message from the envelope into natural-language content. That gains flexibility and hides meaning, the coupling problem KQML practice showed.
+9. An LLM sender may have no belief behind what it asserts. Treat its messages as claims to check, put refusal and failure in typed fields, and validate its output before other systems rely on it. Commitment semantics still apply.

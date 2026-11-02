@@ -1,6 +1,6 @@
 # Plan
 
-Status as of 2026-11-01. Detail for each item lives in the linked section README.
+Status as of 2026-11-02. Detail for each item lives in the linked section README.
 
 ## Done
 
@@ -23,10 +23,14 @@ Status as of 2026-11-01. Detail for each item lives in the linked section README
 10. [10 Group Decisions](learn/10-group-decisions.md): voting, social choice, and fair division (Wooldridge Ch. 12, Weiss Ch. 6).
 11. [11 Coalitions and Auctions](learn/11-coalitions-and-auctions.md): mechanism design, coalitions, auctions, and VCG (Wooldridge Ch. 13-14, Weiss Ch. 7-8).
 12. [12 Bargaining and Argumentation](learn/12-bargaining-and-argumentation.md): negotiation and argumentation (Wooldridge Ch. 15-16, Weiss Ch. 4-5).
+13. [13 Multiagent Learning and Coordination](learn/13-multiagent-learning.md): multiagent reinforcement learning, equilibrium selection, and sparse coordination (Sadhu and Konar, Vlassis Ch. 4 and 7, Weiss Ch. 10).
+14. [14 Context Engineering](learn/14-context-engineering.md): context windows, retrieval, context across agents, compaction, and token cost (Rothman, Dibia, O'Brien).
+15. [15 Evaluating Agent Systems](learn/15-evaluating-agent-systems.md): trajectories, evaluation sets, LLM judges, the evidence on multi-agent designs, and change control (Dibia, O'Brien, Rothman).
+- LLM-era sections added to [05](learn/05-trust-and-reputation.md) (section 8, content as instructions), [07](learn/07-agent-communication.md) (section 7, LLM senders), and [08](learn/08-working-together.md) (section 9, stopping and human control).
 
 ### Research
 
-- Backlog R1 to R12 recorded in [research/README.md](research/README.md).
+- Backlog R1 to R13 recorded in [research/README.md](research/README.md).
 - R11 viability pass: [r11-browser-agent/](research/r11-browser-agent/README.md). Result: viable. The main unknown is whether `ractor_cluster` compiles to WebAssembly.
 
 ## To Do
@@ -39,7 +43,7 @@ Status as of 2026-11-01. Detail for each item lives in the linked section README
 
 - R11 spike: run Q1 to Q3 from the [spike plan](research/r11-browser-agent/README.md#spike-plan).
 - R12 viability pass, after R11.
-- R1 to R10: not started. See the [backlog](research/README.md#backlog).
+- R1 to R10 and R13: not started. See the [backlog](research/README.md#backlog).
 
 ### Engineer
 

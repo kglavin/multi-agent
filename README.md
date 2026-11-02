@@ -17,5 +17,9 @@ Explores multi-agent systems (MAS): the classical theory and how it applies to a
 - Gerhard Weiss (ed.), *Multiagent Systems*, 2nd ed., 2013.
 - Gigi Sayfan, *Design Multi-Agent AI Systems Using MCP and A2A*, 2026.
 - Masaaki Nagahara, Shun-ichi Azuma, and Hyo-Sung Ahn, *Control of Multi-agent Systems*, 2024.
+- Arup Kumar Sadhu and Amit Konar, *Multi-Agent Coordination: A Reinforcement Learning Approach*, 2020.
+- Denis Rothman, *Context Engineering for Multi-Agent Systems*, 2025.
+- Victor Dibia, *Designing Multi-Agent Systems: Principles, Patterns, and Implementation*, 2025.
+- Tim O'Brien, *Building Complex Multi-Agent Systems Using Patterns*, 2026.
 
-PDFs are kept locally and not committed (`*.pdf` is gitignored).
+PDFs and EPUBs are kept locally and not committed (`*.pdf` and `*.epub` are gitignored).
