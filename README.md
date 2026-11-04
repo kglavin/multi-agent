@@ -4,11 +4,11 @@ Explores multi-agent systems (MAS): the classical theory and how it applies to a
 
 ## Sections
 
-| Section | Purpose |
-|---|---|
-| [learn/](learn/) | Core MAS concepts and their relevance to agentic AI. |
-| [research/](research/) | Mini projects to test ideas and try techniques. |
-| [engineer/](engineer/) | Built artifacts: libraries, agents, and documents. |
+| Section               | Purpose                                              |
+| --------------------- | ---------------------------------------------------- |
+| [learn/](learn/)       | Core MAS concepts and their relevance to agentic AI. |
+| [research/](research/) | Mini projects to test ideas and try techniques.      |
+| [engineer/](engineer/) | Built artifacts: libraries, agents, and documents.   |
 
 ## References
 
@@ -25,5 +25,3 @@ Explores multi-agent systems (MAS): the classical theory and how it applies to a
 - Eric Broda and Davis Broda, *Agentic Mesh: The GenAI-Powered Autonomous Agent Ecosystem*, 2026.
 - Uri Wilensky and William Rand, *An Introduction to Agent-Based Modeling: Modeling Natural, Social, and Engineered Complex Systems with NetLogo*, 2015.
 - Juan C. Burguillo, *Self-organizing Coalitions for Managing Complexity*, 2018.
-
-PDFs and EPUBs are kept locally and not committed (`*.pdf` and `*.epub` are gitignored).

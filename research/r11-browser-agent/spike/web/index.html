@@ -1,0 +1,28 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>R11 spike</title>
+<pre id="out"></pre>
+<script type="module">
+  // Q1 in a real browser: the wasm actor on the main thread.
+  // Q2: the same wasm actor inside a module Web Worker.
+  import init, { local_ping, ask } from "../pkg-web/browser.js";
+
+  const url = new URLSearchParams(location.search).get("ws") ?? "ws://127.0.0.1:9001";
+  const out = document.getElementById("out");
+  const result = {};
+  try {
+    await init();
+    result.main_local = await local_ping("main");
+    result.main_remote = JSON.parse(await ask(url, ["from main thread"]));
+    const worker = new Worker("./worker.js", { type: "module" });
+    result.worker = await new Promise((resolve) => {
+      worker.onmessage = (e) => resolve(e.data);
+      worker.onerror = (e) => resolve({ error: e.message });
+      worker.postMessage({ url, texts: ["from worker", "second from worker"] });
+    });
+  } catch (e) {
+    result.error = String(e);
+  }
+  out.textContent = JSON.stringify(result, null, 2);
+  window.__result = result;
+</script>

@@ -1,6 +1,6 @@
 # R11 Ractor in the Browser
 
-Status: viability pass done (2026-11-01). Not started.
+Status: viability pass done (2026-11-01). Spike Q1 and Q2 done, Q3 not started (2026-11-03). See [Spike Results](#spike-results).
 
 ## Question
 
@@ -58,6 +58,32 @@ From Collier, Mascardi, and Ricci (eds.), *Agents and Multi-Agent Systems Develo
 | P6 | JaKtA virtualisation API (Ch. 6.4.3). Time, scheduling, perception, and randomness sit behind one interface for reproducible simulation. | R12: deterministic tests of disconnect and reconnect. |
 | P7 | Yggdrasil body artifacts (Ch. 7.3.1). An agent's presence in a workspace is separate from the process running it. WebSub perception needs a reachable subscriber, which a browser is not. | R12: a server-side presence for an offline frontend. |
 | P8 | BSPL information protocols and Mandrake (Ch. 8.3.1, 8.3.4). Messages depend on information, not order, so reordering and duplicates are harmless. Agents resend or remind when a reply may be lost. | R12: design messages so that redelivery after reconnecting is safe. |
+
+## Spike Results
+
+Run on 2026-11-03 in this repo's container (aarch64 Linux). Code in [spike/](spike/). Versions: ractor and ractor_cluster 0.16.5 (published 2026-08-07, the latest), rustc 1.99.1, wasm-bindgen 0.2.130, gloo-net 0.6.0, tokio-tungstenite 0.28, Node 22.23.3, headless Chromium 131.0.6778.33.
+
+| Code | Result | Effect |
+|---|---|---|
+| S1 | ractor 0.16.5 builds for `wasm32-unknown-unknown` with its default features, and with `default-features = false` plus `tokio_runtime`. On wasm it runs on `tokio_with_wasm` 0.9.2, which uses `setTimeout` and `queueMicrotask` on `globalThis`. | Confirms F1. |
+| S2 | ractor's own `cluster` feature does not build for wasm. Two type errors in `src/factory/job.rs` (lines 208 and 242) mix `std::time::SystemTime` with `web_time::SystemTime`. The same feature builds natively. | A small upstream bug. Even if fixed, S3 still blocks clustering. |
+| S3 | ractor_cluster 0.16.5 does not build for wasm. The first error is from mio 1.2.4: "This wasm target is unsupported by mio. If using Tokio, disable the net feature." `aws-lc-sys` (through `tokio-rustls`) also fails. ractor_cluster requires tokio's `net` feature, `socket2`, and `tokio-rustls`, and has no feature to turn them off. | Answers F2: no. The risk is realised. Browser and server actors cannot join one ractor cluster, so messages need a hand-written protocol. |
+| S4 | ractor's `Actor` requires `State: Send`. A browser WebSocket is not `Send`. `ractor::thread_local::ThreadLocalActor` with `ThreadLocalActorSpawner::new()` (which has a wasm32 build) accepts state that is not `Send`. | The browser actor that owns the socket is a thread-local actor. |
+| S5 | Q1 passes with a hand-written protocol: serde JSON text frames over a WebSocket. Shared types `Request` and `Reply` are in `proto`. The browser actor uses gloo-net, the server uses tokio-tungstenite and a ractor actor. Under Node 22, a wasm actor sent two requests and got two typed replies with matching ids. In headless Chromium it did the same from the page's main thread. | Q1 answered: yes, without ractor_cluster. Node was a stand-in, and Chromium confirmed the result in a real browser. |
+| S6 | Q2 passes. The same wasm module ran inside a module Web Worker in Chromium (`self instanceof WorkerGlobalScope` was true), ran a local actor, and exchanged two requests with the server actor. The static server sent no cross-origin isolation headers. | Q2 answered: yes. Single-threaded actors in a worker need no special headers, consistent with F3. |
+| S7 | Under Node 22 the process crashed after the replies with "closure invoked recursively or after being dropped". Node 22 has no global `CloseEvent`, so gloo-net's drop cannot send the synthetic close event that uses up its one-shot close listener. The real close event then calls a dropped callback. A minimal `CloseEvent` class in `run.mjs` fixes it. Chromium needed no change. gloo-net's `Sink::poll_close` does nothing, so closing through the sink does not close the socket. | A Node stand-in issue only. Close sockets with `WebSocket::close`, or drop them, not through `Sink::close`. |
+
+Q3 (React app with generated TypeScript types and a stream of replies) is not started. The current `ask` export is request and reply, not a stream, and the React toolchain is not set up.
+
+How to reproduce, from `research/r11-browser-agent/spike/`:
+
+1. Install Rust and tools: `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal`, then `rustup target add wasm32-unknown-unknown` and `cargo install wasm-bindgen-cli --version 0.2.130 --locked`.
+2. S1 and S2: `cd probe-ractor && cargo build --target wasm32-unknown-unknown`, then the same with `--features ractor/cluster`.
+3. S3: `cd probe-cluster && cargo build --target wasm32-unknown-unknown`.
+4. Build: `cargo build -p server` and `cargo build -p browser --target wasm32-unknown-unknown`, then `wasm-bindgen --target nodejs --out-dir pkg target/wasm32-unknown-unknown/debug/browser.wasm` and `wasm-bindgen --target web --out-dir pkg-web target/wasm32-unknown-unknown/debug/browser.wasm`.
+5. Start the server: `./target/debug/server 127.0.0.1:9001`.
+6. S5 under Node: `node run.mjs`.
+7. S5 and S6 in Chromium: `npm install`, then `node browser-test.mjs`. It uses the Playwright Chromium in `~/.cache/ms-playwright`, or the path in `CHROMIUM`.
 
 ## Possible Follow-ups
 

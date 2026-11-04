@@ -1,0 +1,18 @@
+[project]
+name = "r14-el-farol"
+version = "0.1.0"
+description = "Rule-based El Farol baseline for R14"
+requires-python = ">=3.12"
+dependencies = [
+    "mesa==3.5.1",
+    "networkx==3.5",
+]
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

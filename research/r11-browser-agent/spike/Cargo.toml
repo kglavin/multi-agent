@@ -1,0 +1,4 @@
+[workspace]
+resolver = "2"
+members = ["proto", "server", "browser"]
+exclude = ["probe-ractor", "probe-cluster"]

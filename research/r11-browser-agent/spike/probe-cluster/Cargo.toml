@@ -1,0 +1,7 @@
+[package]
+name = "probe-cluster"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ractor_cluster = "=0.16.5"

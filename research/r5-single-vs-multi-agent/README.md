@@ -1,6 +1,6 @@
 # R5 Single Agent versus Multi-Agent
 
-Status: plan written (2026-11-02). Not started. Needs the decisions in [Open Questions](#open-questions) before any run.
+Status: corpus, cases, scoring, and tools built (2026-11-03). Not run. Needs a model provider ([Q1](#open-questions)) before the pilot.
 
 ## Question
 
@@ -48,11 +48,15 @@ All configurations use the same model, the same tools, and the same agent loop c
 
 Each suite uses a local corpus so that runs are reproducible and answers can be checked without a judge.
 
-| Code | Suite | Why | Scoring |
-|---|---|---|---|
-| S1 | Short reasoning with exact answers | Where the prior study found the direct call best | Exact match |
-| S2 | Questions over many independent documents, for example extracting one fact from each of 20 files | Parallel, independent parts: the case for subagents | Exact match per fact |
-| S3 | Questions over a corpus larger than one context window, such as a code repository | The LLM-specific reason to split work ([learn/01 §9.7](../../learn/01-setting-the-scene.md#97-a-new-reason-to-use-multiple-agents)) | Exact match or a checked list |
+| Code | Suite | Why | Corpus | Scoring |
+|---|---|---|---|---|
+| S1 | Short reasoning with exact answers | Where the prior study found the direct call best | None. Ten original word problems. Each answer is computed in `cases.py`. | Exact match |
+| S2 | One fact from each of 20 independent documents | Parallel, independent parts: the case for subagents | 20 fictional supplier profiles (`corpus/s2/`, 2,300 words), generated from seed 1 and committed. Each profile has an old and a current value for headquarters, lead time, and contact, and some mention a certification not yet held. | Fraction of facts correct, or F1 for lists |
+| S3 | Questions over a corpus larger than one context window | The LLM-specific reason to split work ([learn/01 §9.7](../../learn/01-setting-the-scene.md#97-a-new-reason-to-use-multiple-agents)) | The Python files of the Django 5.2 package at commit `9e7cc2b`, fetched by `corpus.py` and not committed: 883 files, 5.6 MB, about 1.4 million tokens at four characters per token | F1 for lists, fraction correct for maps. Answers computed from the source with Python's `ast` module. |
+
+Every configuration gets the same three tools over the case's corpus: `list_files`, `read_file` (optionally a line range), and `search` (regular expression, at most 200 matches). S1 cases have no corpus.
+
+Lists in S2 have 3 to 10 answers. S3 cases ask for, among others, the classes that subclass `Field` (19), the middleware classes (19), and the signals defined across the package (21). An answer must be the requested JSON, or it scores 0.
 
 Ten cases per suite. Five runs per case and configuration: 3 suites × 10 cases × 4 configurations × 5 runs = 600 runs.
 
@@ -79,6 +83,24 @@ Written before any run, so the result can refute them.
 
 H2 and H3 together test the claim from [learn/15 §5](../../learn/15-evaluating-agent-systems.md#5-what-the-evidence-says-about-multi-agent-designs): coordination helps only when one context window is not enough.
 
+## Files
+
+| File | Contents |
+|---|---|
+| `corpus.py` | Generates the S2 profiles and fetches the S3 source at the pinned commit |
+| `cases.py` | Builds `cases.jsonl` (30 cases with expected answers) and loads it as harness cases |
+| `score.py` | Exact, list (F1), and map scoring |
+| `tools.py` | The three corpus tools |
+| `tests/test_r5.py` | Checks the answers, the committed corpus, the scorers, and that tools stay inside the corpus |
+
+```bash
+cd research/r5-single-vs-multi-agent
+uv sync
+uv run python corpus.py   # writes corpus/s2, fetches corpus/s3
+uv run python cases.py    # rebuilds cases.jsonl
+uv run pytest
+```
+
 ## Risks
 
 | Code | Risk | Mitigation |
@@ -92,8 +114,8 @@ H2 and H3 together test the claim from [learn/15 §5](../../learn/15-evaluating-
 
 | Code | Step |
 |---|---|
-| S-1 | Settle the open questions |
-| S-2 | Build the corpus and the 30 cases with answers |
+| S-1 | Settle the open questions. Q2 to Q4 done, Q1 open. |
+| S-2 | Build the corpus and the 30 cases with answers. Done. |
 | S-3 | Write one agent loop and the four configurations |
 | S-4 | Commit scoring, prompts, and hypotheses |
 | S-5 | Pilot (48 runs), check cost and logs |
@@ -104,12 +126,13 @@ H2 and H3 together test the claim from [learn/15 §5](../../learn/15-evaluating-
 
 | Code | Question |
 |---|---|
-| Q1 | Which model and provider? No API key is set in this environment. |
-| Q2 | Budget for the pilot and the full run? |
-| Q3 | Plain API loop written here, or an agent SDK? A plain loop keeps the four configurations identical apart from structure. |
-| Q4 | Corpus: this repo plus a public code repository for S3, or something else? |
+| Q1 | Which model and provider? No API key is set in this environment. Open. |
+| Q2 | Budget. Decided: run the pilot first under a small cap, measure the cost per run, then set the full-run budget from that. |
+| Q3 | Plain loop or agent SDK. Decided: the plain loop in the shared [harness](../harness/README.md). |
+| Q4 | Corpus. Decided: synthetic documents for S2, a pinned public repository (Django 5.2) for S3. |
 
 ## Sources
 
 - Dibia, *Designing Multi-Agent Systems*, 2025, Chapter 10 section 10.6 and Chapter 15 section 15.5.
+- [Django](https://github.com/django/django) 5.2, commit 9e7cc2b628fe8fd3895986af9b7fc9525034c1b0, BSD 3-Clause licence (S3 corpus).
 - Vlassis, *A Concise Introduction to Multiagent Systems and Distributed Artificial Intelligence*, 2007, Chapter 1.
