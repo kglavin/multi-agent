@@ -99,3 +99,36 @@ def test_tools_stay_inside_corpus():
     assert first in tools["list_files"]()
     assert tools["read_file"](first, 1, 1).startswith("# ")
     assert "lead time" in tools["search"]("now \\d+ days")
+
+
+def test_tool_output_is_capped(tmp_path):
+    (tmp_path / "big.txt").write_text("x" * 50 + "\n" + "y" * 50)
+    tools = {t.spec.name: t.fn for t in corpus_tools(tmp_path, max_chars=40)}
+    out = tools["read_file"]("big.txt")
+    assert out.startswith("x" * 40) and "cut at 40 characters" in out
+    assert tools["read_file"]("big.txt", 2, 2).startswith("y" * 40)
+
+
+def test_duplicate_tool_calls_counts_repeats_per_run():
+    from run import duplicate_tool_calls
+
+    def ev(run, name, args):
+        return {"event": "tool_result", "run_id": run, "name": name, "args": args}
+
+    log = [ev("r1", "read_file", {"path": "a"}), ev("r1", "read_file", {"path": "a"}),
+           ev("r1", "read_file", {"path": "b"}), ev("r2", "read_file", {"path": "a"}),
+           ev("r1", "delegate", {"task": "x"}), ev("r1", "delegate", {"task": "x"})]
+    assert duplicate_tool_calls(log) == {"r1": 1}
+
+
+def test_pilot_runs_every_suite_and_config_on_stub(tmp_path):
+    from harness import run_experiment
+    from run import MODELS, build_configs, load_suite
+    from score import score
+
+    for suite in ("S1", "S2"):
+        cases, corpus = load_suite(suite, 1)
+        results = run_experiment(tmp_path / suite, cases, build_configs(MODELS["stub"](), corpus, 20), 1,
+                                 score=score)
+        assert [r["config"] for r in results] == ["C1", "C2", "C3", "C4"]
+        assert not any(r["stopped"] for r in results)

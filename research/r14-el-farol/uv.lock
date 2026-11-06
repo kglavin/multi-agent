@@ -41,6 +41,16 @@ wheels = [
 ]
 
 [[package]]
+name = "harness"
+version = "0.1.0"
+source = { editable = "../harness" }
+
+[package.metadata]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest", specifier = ">=8" }]
+
+[[package]]
 name = "iniconfig"
 version = "2.3.1"
 source = { registry = "https://pypi.org/simple" }
@@ -294,6 +304,7 @@ name = "r14-el-farol"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "harness" },
     { name = "mesa" },
     { name = "networkx" },
 ]
@@ -305,6 +316,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "harness", editable = "../harness" },
     { name = "mesa", specifier = "==3.5.1" },
     { name = "networkx", specifier = "==3.5" },
 ]

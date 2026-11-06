@@ -3,5 +3,11 @@ name = "proto"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+# Generates TypeScript types and wasm-bindgen conversions. Only the browser crate enables it.
+ts = ["dep:tsify", "dep:wasm-bindgen"]
+
 [dependencies]
 serde = { version = "1", features = ["derive"] }
+tsify = { version = "=0.5.8", optional = true, default-features = false, features = ["js"] }
+wasm-bindgen = { version = "0.2", optional = true }

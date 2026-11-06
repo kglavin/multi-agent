@@ -1,6 +1,6 @@
 # R11 Ractor in the Browser
 
-Status: viability pass done (2026-11-01). Spike Q1 and Q2 done, Q3 not started (2026-11-03). See [Spike Results](#spike-results).
+Status: viability pass done (2026-11-01). Spike Q1 and Q2 done (2026-11-03). Q3 done (2026-11-06). See [Spike Results](#spike-results).
 
 ## Question
 
@@ -73,17 +73,40 @@ Run on 2026-11-03 in this repo's container (aarch64 Linux). Code in [spike/](spi
 | S6 | Q2 passes. The same wasm module ran inside a module Web Worker in Chromium (`self instanceof WorkerGlobalScope` was true), ran a local actor, and exchanged two requests with the server actor. The static server sent no cross-origin isolation headers. | Q2 answered: yes. Single-threaded actors in a worker need no special headers, consistent with F3. |
 | S7 | Under Node 22 the process crashed after the replies with "closure invoked recursively or after being dropped". Node 22 has no global `CloseEvent`, so gloo-net's drop cannot send the synthetic close event that uses up its one-shot close listener. The real close event then calls a dropped callback. A minimal `CloseEvent` class in `run.mjs` fixes it. Chromium needed no change. gloo-net's `Sink::poll_close` does nothing, so closing through the sink does not close the socket. | A Node stand-in issue only. Close sockets with `WebSocket::close`, or drop them, not through `Sink::close`. |
 
-Q3 (React app with generated TypeScript types and a stream of replies) is not started. The current `ask` export is request and reply, not a stream, and the React toolchain is not set up.
+Q3 was run on 2026-11-06 in the same container. It adds tsify 0.5.8, React 19.3.1, Vite 8.3.5, @vitejs/plugin-react 6.1.2, and TypeScript 7.0.2. The React app is in [spike/app/](spike/app/).
+
+| Code | Result | Effect |
+|---|---|---|
+| S8 | tsify derives TypeScript types for `StreamRequest`, `Chunk`, and `StreamSummary` in `proto`, behind a `ts` feature that only the browser crate turns on, so the server does not depend on wasm-bindgen. wasm-bindgen writes them as interfaces in `pkg-web/browser.d.ts`, and the export is typed `stream(url: string, req: StreamRequest, on_chunk: (chunk: Chunk) => void): Promise<StreamSummary>`. tsify 0.5.8 deprecates its `into_wasm_abi` and `from_wasm_abi` attributes because they leak memory (tsify issue 65), so the export takes and returns `tsify::Ts<T>`. `tsc` checks the React app against these types, and it rejected a test file that passed `count: "5"` and called `toUpperCase` on `seq`. | One Rust definition gives the server, the actor, and React the same message types. tsify was chosen over ts-rs because the types come out of the wasm-bindgen build with no separate export step. |
+| S9 | The server answers a `StreamRequest` with `count` chunks, each made by the server actor and sent as its own frame. In the browser, a thread-local `Streamer` actor reads the frames, checks id and order, and passes each chunk through a futures channel to the `stream` export, which calls the JavaScript callback. An untagged `ClientFrame` enum keeps the plain `Request` wire format, and S5 and S6 still pass. Under Node, 5,000 chunks arrived in order in 100 ms. | A stream of typed replies works through the actor without changing the request and reply path. |
+| S10 | The React app sends one typed request to the actor in a Web Worker and renders the count and the last 20 chunks. In headless Chromium every run received all 5,000 or 20,000 chunks, in three modes: worker with one message per chunk, worker batched on a 16 ms timer, and the actor on the main thread. | Q3 answered: yes. |
+| S11 | Responsiveness, in the table below. With the actor in a worker the page drew a frame every 17 ms throughout the stream, even with 4,175 React commits for 5,000 chunks. With the actor on the main thread, frames came only every 100 to 117 ms and React committed 7 to 10 times, yet no task over 50 ms was recorded. The main thread was busy with many short tasks, so a long-task count alone would have missed the problem. In batched mode the worker's 16 ms timer fired late: 4 messages in 138 ms and 6 in 600 ms, with the first batch on the page 100 to 112 ms after the request, against 28 to 30 ms per chunk. | Keep the actor in a worker. A worker timer does not give even batches during a fast stream. |
+| S12 | The spike's `package.json` declares `"type": "module"`, so Node loaded the CommonJS output of `wasm-bindgen --target nodejs` as an ES module and failed with "exports is not defined in ES module scope". Step 6 as first written no longer ran. `build.sh` writes `pkg/package.json` with `"type": "commonjs"`, after which `node run.mjs` passed again. | Reproduction fix only. |
+
+Median of 3 runs per row, measured by `browser-q3.mjs`. Stream time runs from the first chunk on the page to the last. Frames are `requestAnimationFrame` callbacks on the main thread in that time. Long tasks are main-thread tasks over 50 ms. React commits are commits that changed the view.
+
+| Mode | Chunks | First chunk (ms) | Stream time (ms) | Frames | Largest frame gap (ms) | Long tasks | React commits | Worker messages |
+|---|---|---|---|---|---|---|---|---|
+| Worker, one message per chunk | 5,000 | 30 | 218 | 14 | 17 | 0 | 4,175 | 5,001 |
+| Worker, batched | 5,000 | 112 | 138 | 9 | 17 | 0 | 4 | 4 |
+| Main thread | 5,000 | 30 | 222 | 4 | 117 | 0 | 7 | 0 |
+| Worker, one message per chunk | 20,000 | 28 | 730 | 44 | 17 | 0 | 17,066 | 20,001 |
+| Worker, batched | 20,000 | 100 | 600 | 36 | 17 | 0 | 6 | 6 |
+| Main thread | 20,000 | 28 | 757 | 10 | 100 | 0 | 10 | 0 |
+
+What these numbers do not show: they come from one machine, headless Chromium 131, a debug wasm build, a server on the same host, and a page that renders 20 list items. Input latency was not measured. The stream rates here, 22,000 to 36,000 chunks a second, are a stress case, not a measured workload.
 
 How to reproduce, from `research/r11-browser-agent/spike/`:
 
 1. Install Rust and tools: `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal`, then `rustup target add wasm32-unknown-unknown` and `cargo install wasm-bindgen-cli --version 0.2.130 --locked`.
 2. S1 and S2: `cd probe-ractor && cargo build --target wasm32-unknown-unknown`, then the same with `--features ractor/cluster`.
 3. S3: `cd probe-cluster && cargo build --target wasm32-unknown-unknown`.
-4. Build: `cargo build -p server` and `cargo build -p browser --target wasm32-unknown-unknown`, then `wasm-bindgen --target nodejs --out-dir pkg target/wasm32-unknown-unknown/debug/browser.wasm` and `wasm-bindgen --target web --out-dir pkg-web target/wasm32-unknown-unknown/debug/browser.wasm`.
+4. Build: `./build.sh`. It runs `cargo build -p server` and `cargo build -p browser --target wasm32-unknown-unknown`, then `wasm-bindgen --target nodejs --out-dir pkg` and `wasm-bindgen --target web --out-dir pkg-web` on `target/wasm32-unknown-unknown/debug/browser.wasm`, and writes `pkg/package.json` (S12). If cargo reports "can't find crate" for crates that built before, run `cargo clean` first.
 5. Start the server: `./target/debug/server 127.0.0.1:9001`.
 6. S5 under Node: `node run.mjs`.
 7. S5 and S6 in Chromium: `npm install`, then `node browser-test.mjs`. It uses the Playwright Chromium in `~/.cache/ms-playwright`, or the path in `CHROMIUM`.
+8. S8: `npx tsc -p app` type-checks the React app against the generated types.
+9. S10 and S11: `npx vite build app`, then `node browser-q3.mjs`, or `node browser-q3.mjs 5000` for one size. Stop the server afterwards.
 
 ## Possible Follow-ups
 

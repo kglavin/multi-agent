@@ -18,9 +18,12 @@ import statistics
 import mesa
 
 
-def predict_attendance(strategy: list[float], subhistory: list[int]) -> float:
-    """p(t) = 100 * c + sum of weight * attendance for each remembered week."""
-    return 100 * strategy[0] + sum(w * x for w, x in zip(strategy[1:], subhistory))
+def predict_attendance(strategy: list[float], subhistory: list[int], scale: int = 100) -> float:
+    """p(t) = scale * c + sum of weight * attendance for each remembered week.
+
+    scale is the number of agents, 100 in the book's model.
+    """
+    return scale * strategy[0] + sum(w * x for w, x in zip(strategy[1:], subhistory))
 
 
 class Patron(mesa.Agent):
@@ -35,15 +38,15 @@ class Patron(mesa.Agent):
 
     def decide(self) -> None:
         m = self.model.memory_size
-        self.prediction = predict_attendance(self.best_strategy, self.model.history[:m])
+        self.prediction = predict_attendance(self.best_strategy, self.model.history[:m], self.model.n_agents)
         self.attend = self.prediction <= self.model.overcrowding_threshold
 
     def update_strategies(self) -> None:
         """Score each strategy on the last MEMORY_SIZE weeks. Ties go to the later one, as in NetLogo."""
-        m, history = self.model.memory_size, self.model.history
-        best_score = m * 100 + 1
+        m, history, n = self.model.memory_size, self.model.history, self.model.n_agents
+        best_score = m * n + 1
         for strategy in self.strategies:
-            score = sum(abs(history[week - 1] - predict_attendance(strategy, history[week:week + m]))
+            score = sum(abs(history[week - 1] - predict_attendance(strategy, history[week:week + m], n))
                         for week in range(1, m + 1))
             if score <= best_score:
                 best_score = score
@@ -54,10 +57,11 @@ class ElFarol(mesa.Model):
     def __init__(self, n_agents: int = 100, memory_size: int = 5, number_strategies: int = 10,
                  overcrowding_threshold: int = 60, homogeneous: bool = False, seed: int | None = None):
         super().__init__(rng=seed)
+        self.n_agents = n_agents
         self.memory_size = memory_size
         self.overcrowding_threshold = overcrowding_threshold
         # Twice the memory, so each remembered week can be scored with a full window.
-        self.history = [self.random.randrange(100) for _ in range(memory_size * 2)]
+        self.history = [self.random.randrange(n_agents) for _ in range(memory_size * 2)]
         self.attendance: list[int] = []
         shared = [self.random_strategy() for _ in range(number_strategies)] if homogeneous else None
         for _ in range(n_agents):

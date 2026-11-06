@@ -1,6 +1,6 @@
 # R14 El Farol with LLM Agents
 
-Status: rule-based baseline built and run (2026-11-03). LLM agents not started. They need a model provider ([R5 Q1](../r5-single-vs-multi-agent/README.md#open-questions)).
+Status: rule-based baseline built and run (2026-11-03). LLM-agent loop built and checked on a stub model only (2026-11-06). No real model yet ([R5 Q1](../r5-single-vs-multi-agent/README.md#open-questions)).
 
 ## Question
 
@@ -66,10 +66,73 @@ The book describes the strategies but does not print their code. The code here f
 ```bash
 cd research/r14-el-farol
 uv sync
-uv run pytest                     # 5 tests, about 10 s
+uv run pytest                     # 17 tests, about 10 s
 uv run python run.py              # 20 runs, about 1 minute, writes out/baseline.jsonl
 uv run python run.py --seeds 3 --weeks 300
 ```
+
+## LLM Agents
+
+[llm_el_farol.py](llm_el_farol.py) plays the same game with LLM agents. It uses the shared [harness](../harness/README.md) for the model interface, the JSONL log, and the budget. [run_llm.py](run_llm.py) runs it.
+
+### Design
+
+1. Each week, each agent gets one model call with no tools. Agents keep no memory between weeks except what the prompt shows.
+2. The system prompt gives the rules: N people decide at once, the bar is good only at or below the threshold, a point for each good night, no talking. It ends by asking for one line, `DECISION: GO` or `DECISION: STAY`. The text is `SYSTEM` in [llm_el_farol.py](llm_el_farol.py).
+3. The user prompt gives the week number, attendance for the last 10 weeks, and the agent's own last 10 outcomes (went and it was a good night, went and it was crowded, or stayed home).
+4. As in the baseline, the game starts with 10 weeks of random attendance so the first prompt has a history.
+5. The last decision line in a reply counts. A reply without one counts as STAY and is counted as unparseable.
+6. The default size is 20 agents with a threshold of 12, the book's 60%, over 50 weeks. That is 1,000 model calls per run, sized for a local model. All three are parameters.
+
+### Conditions
+
+| Condition | What differs between agents |
+|---|---|
+| `homogeneous` | Nothing. One model, one prompt, the same information. The LLM version of the monoculture case. |
+| `varied_prompts` | One of five reasoning instructions added to the system prompt, assigned in turn: trend, average, contrarian, own record, and cautious. The texts are `STYLES` in [llm_el_farol.py](llm_el_farol.py). |
+| `private_info` | Each agent sees its own view of past attendance. Each week shows as unknown with probability 0.3, otherwise with noise of up to 20% of N either way. The view of a given week is fixed per agent, so it does not change between prompts. |
+| `varied_models` | Models assigned in turn from a list. Needs at least two models, so it waits for the model rig. |
+
+Example user prompt under `private_info`, week 1:
+
+```text
+This is week 1.
+
+Attendance in recent weeks, most recent first:
+- 1 week ago: unknown
+- 2 weeks ago: 11
+- 3 weeks ago: 0
+...
+
+Your own recent weeks, most recent first:
+- no record yet
+```
+
+### Measures
+
+The baseline's five measures, plus:
+
+| Measure | Meaning |
+|---|---|
+| Unparseable | Replies with no decision line |
+| Tokens | Input plus output tokens for the run |
+| Calls | Model calls for the run |
+
+Each run also runs the rule-based model at the same N, threshold, weeks, and seed, in both of its conditions, so the comparison is like for like. The baseline's prediction now scales with N, and its results at 100 agents are unchanged.
+
+### Run
+
+```bash
+cd research/r14-el-farol
+uv run pytest                                          # 17 tests
+uv run python run_llm.py --condition all --model stub
+uv run python run_llm.py --condition varied_models --model stub --model stub-go
+uv run python run_llm.py --condition homogeneous --agents 20 --threshold 12 --weeks 50 --seed 0 --max-tokens 500000
+```
+
+Output goes to `out/llm/`: one log per condition and seed with every model call, decision, and week, and `results.jsonl` with one row per run. A budget stop ends the run early, and the row records the weeks played.
+
+The only models are two stubs: `stub` answers GO or STAY at random from the seed, and `stub-go` always answers GO. Their figures check the code and are not results. Adding a real model means adding one entry to `MODELS` in [run_llm.py](run_llm.py).
 
 ## Sources
 

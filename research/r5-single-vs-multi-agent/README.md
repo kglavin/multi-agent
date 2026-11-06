@@ -1,6 +1,6 @@
 # R5 Single Agent versus Multi-Agent
 
-Status: corpus, cases, scoring, and tools built (2026-11-03). Not run. Needs a model provider ([Q1](#open-questions)) before the pilot.
+Status: corpus, cases, scoring, tools, prompts, and runner built, and the pilot dry-run on the stub model (2026-11-06). No real run yet. Needs a model provider ([Q1](#open-questions)): an Ollama host is being built.
 
 ## Question
 
@@ -90,8 +90,10 @@ H2 and H3 together test the claim from [learn/15 §5](../../learn/15-evaluating-
 | `corpus.py` | Generates the S2 profiles and fetches the S3 source at the pinned commit |
 | `cases.py` | Builds `cases.jsonl` (30 cases with expected answers) and loads it as harness cases |
 | `score.py` | Exact, list (F1), and map scoring |
-| `tools.py` | The three corpus tools |
-| `tests/test_r5.py` | Checks the answers, the committed corpus, the scorers, and that tools stay inside the corpus |
+| `tools.py` | The three corpus tools. Each result is cut at 20,000 characters (about 5,000 tokens), because the largest S3 file is 119,000 characters and one read would fill a small model's window. |
+| `prompts.py` | System prompts for C1 to C4. The C3 worker uses the C2 prompt. C4's three roles are planner, researcher, and checker. |
+| `run.py` | Runs suites and configurations, writes per-suite logs and a Mermaid `report.md`, and a `summary.md` with M1 to M5. `--pilot` runs 1 case per suite once. Models are chosen in one place, `MODELS`. |
+| `tests/test_r5.py` | Checks the answers, the committed corpus, the scorers, the tool limits, duplicate counting, and a stub run of every configuration |
 
 ```bash
 cd research/r5-single-vs-multi-agent
@@ -99,7 +101,10 @@ uv sync
 uv run python corpus.py   # writes corpus/s2, fetches corpus/s3
 uv run python cases.py    # rebuilds cases.jsonl
 uv run pytest
+uv run python run.py --pilot   # 12 runs on the stub model, output in out/
 ```
+
+S1 cases have no corpus, so S1 agents get no tools. In C4, tool calls stay inside an agent's turn and only its text joins the shared transcript. C4 runs at most 3 rotations.
 
 ## Risks
 
@@ -108,7 +113,7 @@ uv run pytest
 | K1 | Task design favours one configuration | Suites chosen for different reasons, fixed before any run |
 | K2 | Results hold for one model only | Record the model version. Repeat S3 on a second model if budget allows. |
 | K3 | Prompt quality differs between configurations | Shared prompts where possible. Prompts committed with the results. |
-| K4 | Cost exceeds budget | Pilot with one case per suite and one run each (48 runs) to measure cost before the full study |
+| K4 | Cost exceeds budget | Pilot with one case per suite and one run each (12 runs) to measure cost before the full study |
 
 ## Steps
 
@@ -116,9 +121,9 @@ uv run pytest
 |---|---|
 | S-1 | Settle the open questions. Q2 to Q4 done, Q1 open. |
 | S-2 | Build the corpus and the 30 cases with answers. Done. |
-| S-3 | Write one agent loop and the four configurations |
-| S-4 | Commit scoring, prompts, and hypotheses |
-| S-5 | Pilot (48 runs), check cost and logs |
+| S-3 | Write one agent loop and the four configurations. Done, in the [harness](../harness/README.md) and `run.py`. |
+| S-4 | Commit scoring, prompts, and hypotheses. Done when this commit lands. |
+| S-5 | Pilot (12 runs), check cost and logs. Dry run on the stub done. |
 | S-6 | Full run (600 runs) |
 | S-7 | Report results against H1 to H4 |
 
