@@ -1,0 +1,18 @@
+[project]
+name = "r6"
+version = "0.1.0"
+description = "R6 buyer and vendor agents negotiating a holiday booking"
+requires-python = ">=3.12"
+dependencies = ["harness"]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+harness = { path = "../harness", editable = true }
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

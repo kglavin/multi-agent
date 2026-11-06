@@ -17,7 +17,7 @@ Mini projects that investigate a question or try a technique.
 | R3 | Coverage: splitting a codebase or search space among subagents without gaps or overlap. | Nagahara et al. Ch. 4; Vlassis challenge 1 |
 | R4 | Event-triggered communication: agents message only on significant change. Measure token savings. | Nagahara et al. Ch. 1; Vlassis challenge 6 |
 | R5 | Single-agent versus multi-agent token cost on the same task, to test whether Vlassis's cost benefit reverses for LLMs. Plan in [r5-single-vs-multi-agent/](r5-single-vs-multi-agent/README.md). | learn/01 section 7.4 |
-| R6 | Self-interested agents: a buyer agent and a vendor agent negotiating, based on Wooldridge's holiday-booking scenario. | learn/01 sections 4, 9.9 |
+| R6 | Self-interested agents: a buyer agent and a vendor agent negotiating, based on Wooldridge's holiday-booking scenario. Plan and baseline in [r6-negotiation/](r6-negotiation/README.md). | learn/01 sections 4, 9.9 |
 | R7 | An agent reached over A2A that can decline or counter a request, compared with one that always runs. | learn/01 section 8.4; learn/16 section 5 (refusal as a protocol message, liveness checks, resend rules; Collier et al. 2026 Ch. 8) |
 | R8 | Detecting a stale plan: when an agent should drop its plan versus keep going. | learn/01 section 8.2 |
 | R9 | Take apart a running OpenClaw instance and map its behaviour to the BDI and layered models: what acts as beliefs, intentions, and censor rules, and where proactiveness comes from. | learn/03 section 2 |
