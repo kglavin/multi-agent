@@ -37,6 +37,7 @@ class Response:
     output_tokens: int
     model: str
     latency_s: float = 0.0
+    reasoning: str = ""  # thinking text, when the model returns it separately
 
 
 class Model(Protocol):

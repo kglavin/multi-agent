@@ -4,7 +4,7 @@
     uv run python run.py --runs 5                # full study: 600 runs
     uv run python run.py --suites S2 --configs C2 C3 --cases 2 --runs 1
 
-Only the stub model exists so far. Add a real model in MODELS.
+Models are listed in MODELS. Ollama models read OLLAMA_BASE_URL and OLLAMA_CONTEXT_LIMIT.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 
-from harness import FINAL, StubModel, ToolCall, direct, group_chat, orchestrator, run_experiment, single
+from harness import FINAL, StubModel, ToolCall, direct, group_chat, ollama, orchestrator, run_experiment, single
 from harness.record import read_log
 from harness.report import build_report
 
@@ -46,6 +46,8 @@ def dry_policy(messages, tools):
 
 MODELS = {
     "stub": lambda: StubModel(dry_policy, name="stub"),
+    "qwen3:8b": lambda: ollama("qwen3:8b"),
+    "qwen3:8b-nothink": lambda: ollama("qwen3:8b", think=False),
 }
 
 

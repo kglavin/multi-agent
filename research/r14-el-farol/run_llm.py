@@ -14,7 +14,7 @@ import json
 import random
 from pathlib import Path
 
-from harness import Model, Recorder, StubModel
+from harness import Model, Recorder, StubModel, ollama
 
 import el_farol
 from llm_el_farol import CONDITIONS, Config, run
@@ -35,6 +35,8 @@ MEASURES = ["mean_attendance", "sd_attendance", "crowded_fraction", "reward_gini
 MODELS = {
     "stub": lambda seed: StubModel(random_policy(seed), name="stub-random"),
     "stub-go": lambda seed: StubModel(always_go, name="stub-go"),
+    "qwen3:8b": lambda seed: ollama("qwen3:8b"),
+    "qwen3:8b-nothink": lambda seed: ollama("qwen3:8b", think=False),
 }
 
 

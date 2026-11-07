@@ -1,6 +1,8 @@
 import io
 import json
 
+import pytest
+
 from harness import (FINAL, Agent, Budget, BudgetExceeded, Case, Recorder, StubModel, Tool, ToolCall,
                      ToolSpec, direct, group_chat, orchestrator, run_experiment, single, summarise)
 
@@ -108,3 +110,51 @@ def test_report_draws_delegation_and_charts(tmp_path):
     diagram = sequence_diagram([json.loads(l) for l in (tmp_path / "log.jsonl").read_text().splitlines()])
     assert 'a_orchestrator->>a_worker_1: delegate "add 2 and 2"' in diagram
     assert 'a_worker_1-->>a_orchestrator: "4"' in diagram
+
+
+def test_bad_tool_arguments_go_back_to_the_model():
+    model = StubModel(script=[("", [ToolCall("1", "add", {"x": 1})]), ("sorry", [])])
+    buf = io.StringIO()
+    assert single(model, "sys", [ADD])("q", Recorder(buf), Budget()) == "sorry"
+    result = [e for e in events(buf) if e["event"] == "tool_result"][0]
+    assert result["chars"] > 0
+
+
+def test_openai_compat_round_trip_and_overflow(monkeypatch):
+    from harness import ContextOverflow, OpenAICompatModel, Message
+    from harness import openai_compat
+
+    sent = {}
+
+    def fake_post(self, payload):
+        sent.update(payload)
+        return {"model": "m", "usage": {"prompt_tokens": 120, "completion_tokens": 7},
+                "choices": [{"message": {"content": "", "reasoning": "hmm",
+                                         "tool_calls": [{"id": "c1", "function": {"name": "add",
+                                                                                  "arguments": '{"a": 1, "b": 2}'}}]}}]}
+
+    monkeypatch.setattr(openai_compat.OpenAICompatModel, "_post", fake_post)
+    model = OpenAICompatModel("m", base_url="http://x/v1", extra={"reasoning_effort": "none"})
+    history = [Message("user", "q"), Message("assistant", "", [ToolCall("c0", "add", {"a": 0, "b": 0})]),
+               Message("tool", "0", tool_call_id="c0")]
+    r = model.complete(history, [ADD.spec])
+    assert r.tool_calls[0].args == {"a": 1, "b": 2} and r.reasoning == "hmm" and r.input_tokens == 120
+    assert sent["reasoning_effort"] == "none" and sent["tools"][0]["function"]["name"] == "add"
+    assert sent["messages"][1]["tool_calls"][0]["function"]["arguments"] == '{"a": 0, "b": 0}'
+    assert sent["messages"][2]["tool_call_id"] == "c0"
+    with pytest.raises(ContextOverflow):
+        OpenAICompatModel("m", base_url="http://x/v1", context_limit=100).complete(history, [])
+
+
+def test_text_tool_calls_are_recovered_only_when_unambiguous():
+    from harness.openai_compat import text_tool_calls
+
+    names = {"list_files", "read_file"}
+    got = text_tool_calls('{"name": "list_files", "arguments": {"path": "."}}', names)
+    assert [(c.id, c.name, c.args) for c in got] == [("text_0", "list_files", {"path": "."})]
+    fenced = '```json\n{"name": "read_file", "arguments": {"path": "a.md"}}\n```'
+    assert text_tool_calls(fenced, names)[0].name == "read_file"
+    assert text_tool_calls('<tool_call>\n{"name": "read_file", "arguments": {"path": "a"}}\n</tool_call>', names)
+    assert text_tool_calls('{"name": "delete_all", "arguments": {}}', names) == []
+    assert text_tool_calls('Here you go: {"name": "list_files", "arguments": {}}', names) == []
+    assert text_tool_calls('{"Tandor Works": "Leipzig"}', names) == []

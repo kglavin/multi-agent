@@ -50,6 +50,7 @@ class Recorder:
             input_tokens=r.input_tokens,
             output_tokens=r.output_tokens,
             latency_s=round(r.latency_s, 4),
+            reasoning_chars=len(r.reasoning),
             text=r.text,
             tool_calls=[{"name": c.name, "args": c.args} for c in r.tool_calls],
         )

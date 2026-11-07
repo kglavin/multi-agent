@@ -1,4 +1,4 @@
-"""Runs N2 to N5 on seeded profiles. Only stub models exist so far. Add a real model in MODELS.
+"""Runs N2 to N5 on seeded profiles. Models are listed in MODELS. Ollama models read OLLAMA_BASE_URL and OLLAMA_CONTEXT_LIMIT.
 
     uv run python run_llm.py --config N3 --model stub-accept --profiles 3
     uv run python run_llm.py --config all --vendor-style both --model stub
@@ -12,7 +12,7 @@ import re
 from pathlib import Path
 from statistics import mean
 
-from harness import Budget, BudgetExceeded, Recorder, StubModel
+from harness import Budget, BudgetExceeded, Recorder, StubModel, ollama
 
 from llm import GuardedAgent, HybridAgent, LLMAgent, TacticMessenger, measure_messages, negotiate_messages, offer_line
 from negotiation import PRICES, Outcome, make_profile
@@ -72,6 +72,8 @@ MODELS = {
     "stub-accept": lambda: StubModel(stub_accept, name="stub-accept"),
     "stub-leak": lambda: StubModel(stub_leak, name="stub-leak"),
     "stub-garbage": lambda: StubModel(stub_garbage, name="stub-garbage"),
+    "qwen3:8b": lambda: ollama("qwen3:8b"),
+    "qwen3:8b-nothink": lambda: ollama("qwen3:8b", think=False),
 }
 
 

@@ -41,7 +41,13 @@ class Agent:
                 return r.text
             for call in r.tool_calls:
                 tool = self.tools.get(call.name)
-                result = tool.fn(**call.args) if tool else f"error: unknown tool {call.name}"
+                if tool is None:
+                    result = f"error: unknown tool {call.name}"
+                else:
+                    try:
+                        result = tool.fn(**call.args)
+                    except Exception as e:  # bad arguments from the model go back to it as an error
+                        result = f"error: {type(e).__name__}: {e}"
                 recorder.tool_result(self.name, step, call.name, call.args, result)
                 messages.append(Message("tool", result, tool_call_id=call.id))
         recorder.event("step_cap", agent=self.name, max_steps=self.max_steps)

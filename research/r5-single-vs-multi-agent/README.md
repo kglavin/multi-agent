@@ -1,6 +1,6 @@
 # R5 Single Agent versus Multi-Agent
 
-Status: corpus, cases, scoring, tools, prompts, and runner built, and the pilot dry-run on the stub model (2026-11-06). No real run yet. Needs a model provider ([Q1](#open-questions)): an Ollama host is being built.
+Status: built and dry-run on the stub model (2026-11-06). Model chosen ([Q1](#open-questions)). Pilot running on qwen3:8b (2026-11-07).
 
 ## Question
 
@@ -131,7 +131,7 @@ S1 cases have no corpus, so S1 agents get no tools. In C4, tool calls stay insid
 
 | Code | Question |
 |---|---|
-| Q1 | Which model and provider? No API key is set in this environment. Open. |
+| Q1 | Model. Decided (2026-11-07): qwen3:8b (Q4_K_M) on a local Ollama server with an RTX 3060, through the harness's OpenAI-style adapter, with thinking on. Each request is limited to 20,480 tokens of context. Exact-match scoring stays as committed: an answer wrapped in working counts as a format failure. |
 | Q2 | Budget. Decided: run the pilot first under a small cap, measure the cost per run, then set the full-run budget from that. |
 | Q3 | Plain loop or agent SDK. Decided: the plain loop in the shared [harness](../harness/README.md). |
 | Q4 | Corpus. Decided: synthetic documents for S2, a pinned public repository (Django 5.2) for S3. |
