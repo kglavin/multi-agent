@@ -158,3 +158,52 @@ def test_text_tool_calls_are_recovered_only_when_unambiguous():
     assert text_tool_calls('{"name": "delete_all", "arguments": {}}', names) == []
     assert text_tool_calls('Here you go: {"name": "list_files", "arguments": {}}', names) == []
     assert text_tool_calls('{"Tandor Works": "Leipzig"}', names) == []
+
+
+def test_empty_reply_gets_one_nudge():
+    model = StubModel(script=[("", []), ("4", [])])
+    buf = io.StringIO()
+    assert single(model, "sys", [ADD])("q", Recorder(buf), Budget()) == "4"
+    assert [e["event"] for e in events(buf)] == ["model_call", "empty_reply", "model_call"]
+    model = StubModel(script=[("", []), ("", [])])
+    assert single(model, "sys", [ADD])("q", Recorder(io.StringIO()), Budget()) == ""
+
+
+def test_delegate_rejects_a_non_string_task_and_continues():
+    model = StubModel(script=[
+        ("", [ToolCall("1", "delegate", {"task": {"type": "string", "value": "add"}})]),
+        ("4", []),
+    ])
+    buf = io.StringIO()
+    assert orchestrator(model, "orch", "worker", [ADD])("2+2?", Recorder(buf), Budget()) == "4"
+    agents = [e["agent"] for e in events(buf) if e["event"] == "model_call"]
+    assert agents == ["orchestrator", "orchestrator"]
+
+
+def test_budget_stop_inside_a_worker_stops_the_run():
+    model = StubModel(script=[
+        ("", [ToolCall("1", "delegate", {"task": "add"})]),
+        ("", [ToolCall("2", "add", {"a": 1, "b": 1})]),
+        ("2", []),
+        ("2", []),
+    ])
+    with pytest.raises(BudgetExceeded):
+        orchestrator(model, "orch", "worker", [ADD])("q", Recorder(io.StringIO()), Budget(max_calls=2))
+
+
+def test_http_client_errors_are_not_retried(monkeypatch):
+    import urllib.error
+    import urllib.request
+
+    from harness import OpenAICompatModel, Message
+
+    attempts = []
+
+    def fake_urlopen(request, timeout):
+        attempts.append(1)
+        raise urllib.error.HTTPError("u", 400, "bad", {}, io.BytesIO(b"content must be a string"))
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    with pytest.raises(RuntimeError, match="HTTP 400.*content must be a string"):
+        OpenAICompatModel("m", base_url="http://x/v1").complete([Message("user", "q")], [])
+    assert len(attempts) == 1

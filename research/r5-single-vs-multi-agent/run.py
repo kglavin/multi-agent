@@ -103,6 +103,7 @@ def main() -> None:
     p.add_argument("--suites", nargs="+", default=["S1", "S2", "S3"])
     p.add_argument("--configs", nargs="+", default=["C1", "C2", "C3", "C4"])
     p.add_argument("--cases", type=int, default=None, help="cases per suite, default all 10")
+    p.add_argument("--case-ids", nargs="+", default=None, help="only these cases, such as S3-09 S3-10")
     p.add_argument("--runs", type=int, default=5)
     p.add_argument("--pilot", action="store_true", help="1 case per suite and 1 run")
     p.add_argument("--max-tokens", type=int, default=None, help="per run")
@@ -120,6 +121,8 @@ def main() -> None:
              "| Mean duplicate tool calls | Stopped |", "|---|---|---|---|---|---|---|---|---|"]
     for suite in a.suites:
         cases, corpus = load_suite(suite, a.cases)
+        if a.case_ids:
+            cases = [c for c in cases if c.id in a.case_ids]
         configs = {k: v for k, v in build_configs(model, corpus, a.max_steps).items() if k in a.configs}
         suite_out = out / suite
         run_experiment(suite_out, cases, configs, a.runs, score=score, max_tokens=a.max_tokens,

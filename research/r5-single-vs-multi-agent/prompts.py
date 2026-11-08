@@ -9,8 +9,9 @@ from harness import FINAL
 BASE = ("You answer questions accurately. Follow the reply format the task asks for exactly. "
         "Do not add explanation unless the format allows it.")
 
-TOOLS = ("You have tools to list, read, and search the files in a corpus. Use them to find the answer "
-         "and do not guess. Large files are cut off, so read them in line ranges. When you have the "
+TOOLS = ("You have tools to list, find, read, and search the files in a corpus. Paths are relative to the "
+         "corpus root, which is \".\". Start by listing \".\" or finding files by name. Use the tools to find "
+         "the answer and do not guess. Large files are cut off, so read them in line ranges. When you have the "
          "answer, reply with it and call no more tools.")
 
 DIRECT = BASE
@@ -20,7 +21,7 @@ SINGLE = f"{BASE} {TOOLS}"
 WORKER = SINGLE
 
 ORCHESTRATOR = (f"{BASE} You cannot read the corpus yourself. You can delegate self-contained subtasks "
-                "to worker agents. Each worker can list, read, and search the corpus, and starts knowing "
+                "to worker agents. Each worker can list, find, read, and search the corpus, and starts knowing "
                 "only the subtask you give it, so state the subtask and its reply format fully. Split the "
                 "work where parts are independent. Combine the workers' answers into your final reply.")
 

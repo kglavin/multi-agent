@@ -60,7 +60,8 @@ def run_experiment(out_dir: Path, cases: list[Case], configs: dict[str, Config],
     (out_dir / "meta.json").write_text(json.dumps(meta, indent=2) + "\n")
 
     results = []
-    with open(out_dir / "log.jsonl", "w") as log, open(out_dir / "results.jsonl", "w") as res:
+    # Line-buffered, so progress is visible during a long run and a crash loses nothing written.
+    with open(out_dir / "log.jsonl", "w", buffering=1) as log, open(out_dir / "results.jsonl", "w", buffering=1) as res:
         for case in cases:
             for config_name, config in configs.items():
                 for i in range(runs):

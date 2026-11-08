@@ -38,6 +38,8 @@ def orchestrator(model: Model, system: str, worker_system: str, tools: list[Tool
         count = 0
 
         def delegate(task: str) -> str:
+            if not isinstance(task, str):
+                raise TypeError(f"task must be a string, got {type(task).__name__}")
             nonlocal count
             count += 1
             worker = Agent(f"worker-{count}", model, worker_system, tools, max_steps)

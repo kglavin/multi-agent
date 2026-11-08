@@ -2,7 +2,8 @@
 
 exact: 1 or 0 after normalising case, spaces, quotes, and a trailing full stop.
 list:  F1 of the answer's items against the expected items.
-map:   fraction of expected keys whose value matches.
+map:   fraction of expected keys whose value matches, comparing only the part of a value
+       before its first comma, unless the value is a number.
 An answer that does not contain the requested JSON scores 0.
 """
 
@@ -57,12 +58,19 @@ def score_list(expected: list, answer: str) -> float:
     return 2 * precision * recall / (precision + recall)
 
 
+def _head(value) -> str:
+    """The part before the first comma, unless the value is a number such as 12,250.
+    "Wroclaw, Poland" becomes "Wroclaw" (decision O4, after pilot 2)."""
+    text = str(value)
+    return text if re.fullmatch(r"[\d,.\s]+", text.strip()) else text.split(",")[0]
+
+
 def score_map(expected: dict, answer: str) -> float:
     got = extract_json(answer, dict)
     if got is None:
         return 0.0
-    have = {_norm(k): _norm(v) for k, v in got.items()}
-    return sum(have.get(_norm(k)) == _norm(v) for k, v in expected.items()) / len(expected)
+    have = {_norm(k): _norm(_head(v)) for k, v in got.items()}
+    return sum(have.get(_norm(k)) == _norm(_head(v)) for k, v in expected.items()) / len(expected)
 
 
 SCORERS = {"exact": score_exact, "list": score_list, "map": score_map}

@@ -69,7 +69,7 @@ def text_tool_calls(text: str, tool_names: set[str]) -> list[ToolCall]:
 class OpenAICompatModel:
     def __init__(self, model: str, base_url: str | None = None, name: str | None = None,
                  context_limit: int | None = None, extra: dict | None = None, timeout_s: float = 900,
-                 retries: int = 2, api_key: str | None = None):
+                 retries: int = 8, api_key: str | None = None):
         self.model = model
         self.name = name or model
         self.base_url = (base_url or os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434/v1")).rstrip("/")
@@ -89,10 +89,14 @@ class OpenAICompatModel:
             try:
                 with urllib.request.urlopen(request, timeout=self.timeout_s) as r:
                     return json.load(r)
+            except urllib.error.HTTPError as e:
+                # The server answered. A 4xx is a bad request and will not improve on retry.
+                if e.code < 500 or attempt == self.retries:
+                    raise RuntimeError(f"HTTP {e.code} from {self.base_url}: {e.read()[:500]!r}") from e
             except (urllib.error.URLError, TimeoutError, ConnectionError, http.client.HTTPException):
                 if attempt == self.retries:
                     raise
-                time.sleep(2 ** attempt)
+                time.sleep(min(60, 2 ** attempt))  # about 4 minutes in all before giving up
         raise AssertionError("unreachable")
 
     def complete(self, messages: list[Message], tools: list[ToolSpec]) -> Response:

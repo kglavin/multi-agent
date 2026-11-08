@@ -1,6 +1,6 @@
 # R5 Single Agent versus Multi-Agent
 
-Status: built and dry-run on the stub model (2026-11-06). Model chosen ([Q1](#open-questions)). Pilot running on qwen3:8b (2026-11-07).
+Status: two pilots done. Full run (600 runs) started on qwen3:8b on 2026-11-07.
 
 ## Question
 
@@ -51,10 +51,10 @@ Each suite uses a local corpus so that runs are reproducible and answers can be 
 | Code | Suite | Why | Corpus | Scoring |
 |---|---|---|---|---|
 | S1 | Short reasoning with exact answers | Where the prior study found the direct call best | None. Ten original word problems. Each answer is computed in `cases.py`. | Exact match |
-| S2 | One fact from each of 20 independent documents | Parallel, independent parts: the case for subagents | 20 fictional supplier profiles (`corpus/s2/`, 2,300 words), generated from seed 1 and committed. Each profile has an old and a current value for headquarters, lead time, and contact, and some mention a certification not yet held. | Fraction of facts correct, or F1 for lists |
+| S2 | One fact from each of 20 independent documents | Parallel, independent parts: the case for subagents | 20 fictional supplier profiles (`corpus/s2/`, 2,300 words), generated from seed 1 and committed. Each profile has an old and a current value for headquarters, lead time, and contact, and some mention a certification not yet held. | Fraction of facts correct, or F1 for lists. Map values are compared on the part before the first comma. |
 | S3 | Questions over a corpus larger than one context window | The LLM-specific reason to split work ([learn/01 §9.7](../../learn/01-setting-the-scene.md#97-a-new-reason-to-use-multiple-agents)) | The Python files of the Django 5.2 package at commit `9e7cc2b`, fetched by `corpus.py` and not committed: 883 files, 5.6 MB, about 1.4 million tokens at four characters per token | F1 for lists, fraction correct for maps. Answers computed from the source with Python's `ast` module. |
 
-Every configuration gets the same three tools over the case's corpus: `list_files`, `read_file` (optionally a line range), and `search` (regular expression, at most 200 matches). S1 cases have no corpus.
+Every configuration gets the same four tools over the case's corpus: `list_files` (one level), `find_files` (glob on names, all levels), `read_file` (optionally a line range), and `search` (regular expression on contents, at most 200 matches). `find_files` was added after pilot 1. S1 cases have no corpus.
 
 Lists in S2 have 3 to 10 answers. S3 cases ask for, among others, the classes that subclass `Field` (19), the middleware classes (19), and the signals defined across the package (21). An answer must be the requested JSON, or it scores 0.
 
@@ -90,7 +90,7 @@ H2 and H3 together test the claim from [learn/15 §5](../../learn/15-evaluating-
 | `corpus.py` | Generates the S2 profiles and fetches the S3 source at the pinned commit |
 | `cases.py` | Builds `cases.jsonl` (30 cases with expected answers) and loads it as harness cases |
 | `score.py` | Exact, list (F1), and map scoring |
-| `tools.py` | The three corpus tools. Each result is cut at 20,000 characters (about 5,000 tokens), because the largest S3 file is 119,000 characters and one read would fill a small model's window. |
+| `tools.py` | The four corpus tools: `list_files`, `find_files`, `read_file`, `search`. Each result is cut at 20,000 characters (about 5,000 tokens), because the largest S3 file is 119,000 characters and one read would fill a small model's window. |
 | `prompts.py` | System prompts for C1 to C4. The C3 worker uses the C2 prompt. C4's three roles are planner, researcher, and checker. |
 | `run.py` | Runs suites and configurations, writes per-suite logs and a Mermaid `report.md`, and a `summary.md` with M1 to M5. `--pilot` runs 1 case per suite once. Models are chosen in one place, `MODELS`. |
 | `tests/test_r5.py` | Checks the answers, the committed corpus, the scorers, the tool limits, duplicate counting, and a stub run of every configuration |
@@ -105,6 +105,43 @@ uv run python run.py --pilot   # 12 runs on the stub model, output in out/
 ```
 
 S1 cases have no corpus, so S1 agents get no tools. In C4, tool calls stay inside an agent's turn and only its text joins the shared transcript. C4 runs at most 3 rotations.
+
+## Pilots
+
+### Pilot 1 (2026-11-07)
+
+qwen3:8b with thinking on, 1 case per suite, 1 run, at most 100 model calls per run. 12 runs took 2,118 seconds, 132,841 tokens, and 81 model calls. Model calls took all of the wall time. No run reached the call cap or the context limit.
+
+| Suite | C1 | C2 | C3 | C4 |
+|---|---|---|---|---|
+| S1 | 1.00 | 1.00 | 0.00 | 1.00 |
+| S2 | 0.00 | 0.00 | 0.00 | 0.00 |
+| S3 | 0.53 | 0.00 | 0.00 | 0.13 |
+
+| Code | Finding | Change |
+|---|---|---|
+| P1 | On S2 the agents guessed directories such as `supplier_profiles/` and `s2/`, and never listed `.`. On S3 they used `search`, which matches file contents, to look for file names, and one worker concluded that no directory holds an `apps.py`. `list_files` lists one level and no tool found files by name. | The prompt and tool descriptions say the root is `.`. A leading `/` means the root. `search` says it matches contents. New tool `find_files` matches names in all subdirectories. |
+| P2 | Three model calls returned no text and no tool call after 450 to 2,800 tokens of thinking, ending the run with an empty answer. Only the length of the thinking text was logged. | The agent loop answers an empty reply once with a fixed nudge and logs `empty_reply`. The full thinking text is logged. |
+| P3 | C1 has no tools, yet scored 0.53 on S3-01 from training data: 8 of 15 Django app names. On S2 it invented cities. | None. C1 measures what the model knows or invents without the corpus, so it stays on every suite ([Q5](#open-questions)). |
+| P4 | C3 on S1 returned its working instead of the number. | None. A format failure under exact match ([Q1](#open-questions)). |
+| P5 | One C4 run on S3 took 1,439 seconds. At pilot rates the full 600 runs take about 29 hours. | Decide runs per case after pilot 2 ([Q6](#open-questions)). |
+
+### Pilot 2 (2026-11-07)
+
+The same settings after the P1 and P2 changes. 12 runs took 2,440 seconds, 173,437 tokens, and 84 model calls. One model call, the first C3 orchestrator call on S2, ran at about 2 tokens a second for 939 seconds against about 50 elsewhere, which points to a stall on the server. Without it the pilot took about 25 minutes.
+
+| Suite | C1 | C2 | C3 | C4 |
+|---|---|---|---|---|
+| S1 | 1.00 | 1.00 | 1.00 | 1.00 |
+| S2 | 0.00 | 0.10 | 0.00 | 0.00 |
+| S3 | 0.33 | 0.00 | 0.00 | 0.87 |
+
+| Code | Finding |
+|---|---|
+| P6 | The agents now use the tools: `find_files` in 5 of 6 tool runs, and `read_file` up to 6 times in a run. No empty answers. One empty reply was nudged and recovered. |
+| P7 | C3 on S2 found all 20 current cities, but wrote each as city and country ("Wroclaw, Poland"), so exact match scored it 0. Scored on the part before the comma it gets 20 of 20. |
+| P8 | C2 on S2 read 2 of the 20 profiles and answered for those 2 only (both right). C4 read one profile, keyed its answer by file name, and invented the rest. |
+| P9 | C4 on S3 scored 0.87, 13 of 15 app names from the source. C2 and C3 found the files but returned the wrong JSON shape (C2) or an empty object (C3). |
 
 ## Risks
 
@@ -131,10 +168,12 @@ S1 cases have no corpus, so S1 agents get no tools. In C4, tool calls stay insid
 
 | Code | Question |
 |---|---|
-| Q1 | Model. Decided (2026-11-07): qwen3:8b (Q4_K_M) on a local Ollama server with an RTX 3060, through the harness's OpenAI-style adapter, with thinking on. Each request is limited to 20,480 tokens of context. Exact-match scoring stays as committed: an answer wrapped in working counts as a format failure. |
+| Q1 | Model. Decided (2026-11-07): qwen3:8b (Q4_K_M) on a local Ollama server with an RTX 3060, through the harness's OpenAI-style adapter, with thinking on. Each request is limited to 20,480 tokens of context. Exact-match scoring stays as committed: an answer wrapped in working counts as a format failure. After pilot 2 (finding P7), map values are compared on the part before the first comma, unless the value is a number (decision O4). |
 | Q2 | Budget. Decided: run the pilot first under a small cap, measure the cost per run, then set the full-run budget from that. |
 | Q3 | Plain loop or agent SDK. Decided: the plain loop in the shared [harness](../harness/README.md). |
 | Q4 | Corpus. Decided: synthetic documents for S2, a pinned public repository (Django 5.2) for S3. |
+| Q5 | Should C1 run on S2 and S3, where it cannot see the corpus? Decided after pilot 1: yes. It measures what the model knows or invents without the corpus. |
+| Q6 | Runs per case. Decided after pilot 2: 5 runs as planned, 600 runs in all, started 2026-11-07 on qwen3:8b with thinking on, one suite at a time. |
 
 ## Sources
 

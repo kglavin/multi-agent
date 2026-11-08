@@ -132,3 +132,36 @@ def test_pilot_runs_every_suite_and_config_on_stub(tmp_path):
                                  score=score)
         assert [r["config"] for r in results] == ["C1", "C2", "C3", "C4"]
         assert not any(r["stopped"] for r in results)
+
+
+def test_root_and_find_files():
+    tools = {t.spec.name: t.fn for t in corpus_tools(S2_DIR)}
+    assert tools["list_files"]("/") == tools["list_files"](".")
+    found = tools["find_files"]("*.md").splitlines()
+    assert len(found) == 20 and all(f.endswith(".md") for f in found)
+    assert tools["find_files"]("*.py") == "no files"
+    assert "error" in tools["find_files"]("*.md", "../..")
+
+
+@needs_s3
+def test_find_files_reaches_nested_apps():
+    tools = {t.spec.name: t.fn for t in corpus_tools(S3_DIR)}
+    assert "django/contrib/auth/apps.py" in tools["find_files"]("apps.py", "django/contrib").splitlines()
+
+
+def test_score_map_ignores_text_after_a_comma_but_not_in_numbers():
+    assert score_map({"A": "Wroclaw"}, '{"A": "Wroclaw, Poland"}') == 1.0
+    assert score_map({"A": 12250}, '{"A": "12,250"}') == 1.0
+    assert score_map({"A": 12250}, '{"A": "12"}') == 0.0
+    assert score_map({"A": "Wroclaw"}, '{"A": "Gdansk, Poland"}') == 0.0
+
+
+def test_search_stops_a_runaway_pattern(tmp_path, monkeypatch):
+    import tools
+
+    monkeypatch.setattr(tools, "SEARCH_TIMEOUT_S", 1)
+    (tmp_path / "a.py").write_text("class Foo(" + "a b c d e f g h i j k l m n o p q r s t u v w x y z " * 2 + ")\n")
+    search = {t.spec.name: t.fn for t in corpus_tools(tmp_path)}["search"]
+    pattern = r"class\s+(\w+)\s*\((?:\s*[\w.]+\s*)*\s*MiddlewareMixin\s*(?:\s*[\w.]+\s*)*\)"
+    assert search(pattern).startswith("error: search stopped after 1 seconds")
+    assert search("class Foo").startswith("a.py:1:")

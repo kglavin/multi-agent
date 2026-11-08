@@ -6,7 +6,10 @@ from dataclasses import dataclass
 from typing import Callable
 
 from .model import Message, Model, ToolSpec
-from .record import Budget, Recorder
+from .record import Budget, BudgetExceeded, Recorder
+
+
+EMPTY_NUDGE = "Your last reply was empty. Call a tool, or give your answer in the format the task asks for."
 
 
 @dataclass
@@ -32,13 +35,21 @@ class Agent:
         return r
 
     def run(self, task: str, recorder: Recorder, budget: Budget) -> str:
-        """Runs in a fresh context. Returns the final text, or "" if the step cap is hit."""
+        """Runs in a fresh context. Returns the final text, or "" if the step cap is hit or the
+        reply is still empty after one nudge."""
         messages = [Message("system", self.system), Message("user", task)]
+        nudged = False
         for step in range(self.max_steps):
             r = self.step(messages, recorder, budget, step)
             messages.append(Message("assistant", r.text, r.tool_calls))
             if not r.tool_calls:
-                return r.text
+                if r.text.strip() or nudged:
+                    return r.text
+                # An empty reply (no text, no tool call) gets one fixed nudge.
+                nudged = True
+                recorder.event("empty_reply", agent=self.name, step=step)
+                messages.append(Message("user", EMPTY_NUDGE))
+                continue
             for call in r.tool_calls:
                 tool = self.tools.get(call.name)
                 if tool is None:
@@ -46,6 +57,8 @@ class Agent:
                 else:
                     try:
                         result = tool.fn(**call.args)
+                    except BudgetExceeded:  # includes ContextOverflow: stops the whole run
+                        raise
                     except Exception as e:  # bad arguments from the model go back to it as an error
                         result = f"error: {type(e).__name__}: {e}"
                 recorder.tool_result(self.name, step, call.name, call.args, result)
