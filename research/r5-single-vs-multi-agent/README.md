@@ -1,6 +1,6 @@
 # R5 Single Agent versus Multi-Agent
 
-Status: two pilots done. Full run (600 runs) started on qwen3:8b on 2026-11-07.
+Status: done. Two pilots and the full run (600 runs) on qwen3:8b, 2026-11-07. See [Results](#results).
 
 ## Question
 
@@ -92,7 +92,8 @@ H2 and H3 together test the claim from [learn/15 §5](../../learn/15-evaluating-
 | `score.py` | Exact, list (F1), and map scoring |
 | `tools.py` | The four corpus tools: `list_files`, `find_files`, `read_file`, `search`. Each result is cut at 20,000 characters (about 5,000 tokens), because the largest S3 file is 119,000 characters and one read would fill a small model's window. |
 | `prompts.py` | System prompts for C1 to C4. The C3 worker uses the C2 prompt. C4's three roles are planner, researcher, and checker. |
-| `run.py` | Runs suites and configurations, writes per-suite logs and a Mermaid `report.md`, and a `summary.md` with M1 to M5. `--pilot` runs 1 case per suite once. Models are chosen in one place, `MODELS`. |
+| `run.py` | Runs suites and configurations, writes per-suite logs and a Mermaid `report.md`, and a `summary.md` with M1 to M5. `--pilot` runs 1 case per suite once. `--case-ids` runs only the named cases. Models are chosen in one place, `MODELS`. |
+| `analyse.py` | The results tables: score with a 95% bootstrap interval over cases, M2 to M5, and score per case. Merges a re-run of some cases into the run it repairs. |
 | `tests/test_r5.py` | Checks the answers, the committed corpus, the scorers, the tool limits, duplicate counting, and a stub run of every configuration |
 
 ```bash
@@ -143,6 +144,69 @@ The same settings after the P1 and P2 changes. 12 runs took 2,440 seconds, 173,4
 | P8 | C2 on S2 read 2 of the 20 profiles and answered for those 2 only (both right). C4 read one profile, keyed its answer by file name, and invented the rest. |
 | P9 | C4 on S3 scored 0.87, 13 of 15 app names from the source. C2 and C3 found the files but returned the wrong JSON shape (C2) or an empty object (C3). |
 
+## Results
+
+### Full Run (2026-11-07)
+
+qwen3:8b with thinking on, 5 runs per case, at most 100 model calls per run, 20,480 tokens of context per request. All 600 runs finished. None reached the call cap or the context limit. Model time was about 21 hours: S1 1 hour, S2 8.5 hours, S3 11 hours.
+
+The run stalled twice. Both causes were fixed in the code, with tests:
+
+1. The C3 orchestrator passed `delegate` a JSON object instead of a string. Ollama refused the request and the adapter retried it as if the network had failed. The adapter no longer retries a refused request, and `delegate` returns an error to the orchestrator. The run was restarted from the beginning.
+2. In run S3-09/C4/2, the model searched with a regular expression whose nested repeats backtrack without end, and Python's `re` has no time limit. `search` now stops after 30 seconds. S3-09 and S3-10 were re-run in full. The S3 results merge S3-01 to S3-08 from the first pass with S3-09 and S3-10 from the re-run. No earlier search could have reached the limit, because such a search never returns.
+
+```bash
+O=out/full-qwen3-8b
+uv run python analyse.py $O/S1-run/S1 $O/S2-run/S2 $O/S3-run/S3 $O/S3-resume-run/S3
+```
+
+The interval is a 95% bootstrap interval over the 10 cases, since the 5 runs of one case are not independent.
+
+| Suite | Config | Mean score | 95% interval | Mean tokens | Mean calls | Mean seconds | Mean duplicate tool calls |
+|---|---|---|---|---|---|---|---|
+| S1 | C1 | 0.94 | 0.82 to 1.00 | 885 | 1.0 | 14 | 0.0 |
+| S1 | C2 | 0.90 | 0.70 to 1.00 | 728 | 1.0 | 10 | 0.0 |
+| S1 | C3 | 0.52 | 0.30 to 0.74 | 1,470 | 1.8 | 18 | 0.0 |
+| S1 | C4 | 0.82 | 0.60 to 1.00 | 2,515 | 2.9 | 30 | 0.0 |
+| S2 | C1 | 0.00 | 0.00 to 0.00 | 866 | 1.0 | 14 | 0.0 |
+| S2 | C2 | 0.16 | 0.06 to 0.29 | 9,198 | 5.4 | 75 | 0.0 |
+| S2 | C3 | 0.12 | 0.04 to 0.20 | 17,860 | 13.0 | 203 | 0.7 |
+| S2 | C4 | 0.25 | 0.14 to 0.37 | 44,652 | 23.3 | 318 | 5.2 |
+| S3 | C1 | 0.36 | 0.20 to 0.52 | 1,320 | 1.0 | 22 | 0.0 |
+| S3 | C2 | 0.32 | 0.18 to 0.48 | 9,084 | 4.5 | 97 | 0.2 |
+| S3 | C3 | 0.33 | 0.19 to 0.49 | 16,465 | 9.3 | 182 | 0.2 |
+| S3 | C4 | 0.68 | 0.53 to 0.83 | 51,888 | 25.3 | 397 | 3.6 |
+
+### Hypotheses
+
+| Code | Result | Evidence |
+|---|---|---|
+| H1 | Supported | On S1, C1 0.94 and C2 0.90 against C4 0.82 and C3 0.52. The gap is formatting, not reasoning (F1). |
+| H2 | Supported on S2, not on S1 | S2: C2 0.16 and C3 0.12, with overlapping intervals. S1: C2's 0.90 lies outside C3's interval of 0.30 to 0.74, again because of formatting (F1). |
+| H3 | Not supported | On S3, C3 0.33 and C2 0.32. C4 scored 0.68, and its interval does not overlap C2's or C3's. |
+| H4 | Supported | C3 used 1.8 to 2.0 times C2's tokens on every suite, and C4 3.5 to 5.7 times. |
+
+### Findings
+
+| Code | Finding |
+|---|---|
+| F1 | S1 failures are format failures. The expected number appears in 98% of C3 answers and 100% of the others. C3's orchestrator passes on the worker's working instead of the bare number: all 24 of its failures are sentences or worked solutions. On S1-05 every configuration answered "Ben is currently 6 years old", which is right but scores 0. |
+| F2 | On S2 the agents stop early. Of the 20 profiles, C2 read 1.3 on average, C3 2.4, and C4 2.0. Runs that used `search` scored higher: C2 0.20 against 0.03, C4 0.28 against 0.06. Zero scores were empty objects (17 C2 runs, 10 C3, 7 C4) or answers for a few suppliers, sometimes with invented values. C1 scored 0, as expected on a fictional corpus. |
+| F3 | On S3, C2 and C3 often answer with an empty list or object after a search finds nothing: 17 and 23 of 50 runs. C4 had such an empty answer in an earlier turn in 22 of 50 runs, but ended with one in only 2. Its rotation gives the task several attempts, and that, not the split of roles, accounts for most of its lead. It paid 5.7 times C2's tokens and 4 times its time. |
+| F4 | C1 scored 0.36 on S3 without any tools, level with C2 and C3. qwen3:8b knows part of Django 5.2 from training, so S3 measures memory as well as reading the corpus. |
+| F5 | C4 repeats tool calls: 5.2 per run on S2 and 3.6 on S3, against at most 0.7 elsewhere. Only an agent's text joins the shared transcript, so the next agent runs the same searches again. |
+| F6 | 10 runs ended with a tool call written as text that the adapter could not parse, so the call became the answer: 6 on S2 and 4 on S3. |
+
+### Answer
+
+On these tasks with qwen3:8b, the orchestrator (C3) never beat a single agent and cost about twice the tokens. Group chat (C4) beat it on S2 and S3 at 5 to 6 times the tokens, and the evidence points to repeated attempts as the reason, not division of work. On short reasoning, every extra agent made the answer format worse.
+
+Follow-ups, not part of this study:
+
+1. A single agent that is told to retry after an empty answer, to test whether it matches C4 at a fraction of the tokens (F3).
+2. Repeat S3 with a second model and with a corpus the model has not seen (F4, risk K2).
+3. Score S1 by the number in the answer as a secondary measure, keeping exact match as the committed score (F1).
+
 ## Risks
 
 | Code | Risk | Mitigation |
@@ -156,13 +220,13 @@ The same settings after the P1 and P2 changes. 12 runs took 2,440 seconds, 173,4
 
 | Code | Step |
 |---|---|
-| S-1 | Settle the open questions. Q2 to Q4 done, Q1 open. |
+| S-1 | Settle the open questions. Done. |
 | S-2 | Build the corpus and the 30 cases with answers. Done. |
 | S-3 | Write one agent loop and the four configurations. Done, in the [harness](../harness/README.md) and `run.py`. |
 | S-4 | Commit scoring, prompts, and hypotheses. Done when this commit lands. |
-| S-5 | Pilot (12 runs), check cost and logs. Dry run on the stub done. |
-| S-6 | Full run (600 runs) |
-| S-7 | Report results against H1 to H4 |
+| S-5 | Pilot (12 runs), check cost and logs. Done, twice. |
+| S-6 | Full run (600 runs). Done, 2026-11-07. |
+| S-7 | Report results against H1 to H4. Done, in [Results](#results). |
 
 ## Open Questions
 
