@@ -1,6 +1,6 @@
 # R14 El Farol with LLM Agents
 
-Status: rule-based baseline built and run (2026-11-03). LLM-agent loop built and checked on a stub model only (2026-11-06). No real model yet ([R5 Q1](../r5-single-vs-multi-agent/README.md#open-questions)).
+Status: rule-based baseline built and run (2026-11-03). LLM runs on qwen3:8b done for three of four conditions (2026-11-09 to 2026-11-11). See [LLM Results](#llm-results). `varied_models` is deferred.
 
 ## Question
 
@@ -91,7 +91,7 @@ uv run python run.py --seeds 3 --weeks 300
 | `homogeneous` | Nothing. One model, one prompt, the same information. The LLM version of the monoculture case. |
 | `varied_prompts` | One of five reasoning instructions added to the system prompt, assigned in turn: trend, average, contrarian, own record, and cautious. The texts are `STYLES` in [llm_el_farol.py](llm_el_farol.py). |
 | `private_info` | Each agent sees its own view of past attendance. Each week shows as unknown with probability 0.3, otherwise with noise of up to 20% of N either way. The view of a given week is fixed per agent, so it does not change between prompts. |
-| `varied_models` | Models assigned in turn from a list. Needs at least two models, so it waits for the model rig. |
+| `varied_models` | Models assigned in turn from a list. Deferred: the second model on the server, gemma4:e4b, got 0.5 GB of GPU memory and ran mostly on the CPU, and with thinking off it answered without the decision line. |
 
 Example user prompt under `private_info`, week 1:
 
@@ -133,6 +133,56 @@ uv run python run_llm.py --condition homogeneous --agents 20 --threshold 12 --we
 Output goes to `out/llm/`: one log per condition and seed with every model call, decision, and week, and `results.jsonl` with one row per run. A budget stop ends the run early, and the row records the weeks played.
 
 The only models are two stubs: `stub` answers GO or STAY at random from the seed, and `stub-go` always answers GO. Their figures check the code and are not results. Adding a real model means adding one entry to `MODELS` in [run_llm.py](run_llm.py).
+
+### LLM Results
+
+qwen3:8b (Q4_K_M) on a local Ollama server with an RTX 3060, 20 agents, threshold 12, 50 weeks, 1,000 model calls per run. Each run also ran the rule-based model at the same size and seed. Every reply had a decision line.
+
+A pilot of 3 weeks measured the cost. With thinking on, a call took 36 seconds and about 2,000 output tokens, so one run takes about 13 hours. With thinking off, a run took about 13 minutes. So the main run has thinking off with 10 seeds, and thinking on was run for one seed of two conditions as a check.
+
+```bash
+uv run python run_llm.py --condition all --model qwen3:8b-nothink --seed 0 --out out/llm-full/nothink   # seeds 0 to 9
+uv run python run_llm.py --condition homogeneous --model qwen3:8b --seed 0 --out out/llm-full/think
+uv run python analyse_llm.py out/llm-full/nothink/results.jsonl
+```
+
+Thinking off, 10 seeds. Mean across seeds, with the range in brackets.
+
+| Condition | Mean attendance | Attendance SD | Crowded fraction | Reward Gini | Mean reward |
+|---|---|---|---|---|---|
+| homogeneous | 4.3 (3.1 to 6.5) | 5.9 (4.7 to 6.9) | 0.12 (0.06 to 0.14) | 0.47 (0.17 to 0.73) | 5.3 (0.9 to 14.0) |
+| varied_prompts | 9.9 (9.4 to 10.4) | 2.9 (2.6 to 3.5) | 0.17 (0.14 to 0.22) | 0.31 (0.23 to 0.38) | 18.6 (17.1 to 19.6) |
+| private_info | 5.3 (4.0 to 6.6) | 4.0 (2.9 to 5.3) | 0.06 (0.02 to 0.10) | 0.17 (0.11 to 0.26) | 11.1 (5.7 to 15.5) |
+| rule-diverse | 11.4 (10.5 to 12.0) | 2.6 (1.6 to 3.6) | 0.34 (0.22 to 0.44) | 0.30 (0.22 to 0.38) | 16.2 (13.3 to 20.8) |
+| rule-homogeneous | 12.3 (9.6 to 16.0) | 9.5 (8.0 to 10.0) | 0.62 (0.48 to 0.80) | 0.00 | 0.0 |
+
+Seed 0, thinking off against thinking on.
+
+| Condition | Thinking | Mean attendance | Attendance SD | Crowded fraction | Reward Gini | Mean reward | Tokens |
+|---|---|---|---|---|---|---|---|
+| homogeneous | off | 3.7 | 6.4 | 0.14 | 0.47 | 2.9 | 311,422 |
+| homogeneous | on | 12.1 | 6.3 | 0.50 | 0.19 | 7.8 | 2,904,596 |
+| varied_prompts | off | 10.4 | 2.6 | 0.22 | 0.38 | 18.2 | 383,126 |
+| varied_prompts | on | 11.8 | 2.5 | 0.50 | 0.35 | 12.2 | 2,868,323 |
+| rule-diverse | | 11.2 | 3.6 | 0.40 | 0.27 | 13.3 | |
+
+Attendance in the first 12 weeks of seed 0:
+
+| Condition | Thinking | Attendance |
+|---|---|---|
+| homogeneous | off | 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 20 |
+| homogeneous | on | 20, 4, 19, 5, 18, 9, 18, 7, 15, 6, 11, 18 |
+| varied_prompts | off | 7, 11, 15, 8, 13, 11, 12, 9, 9, 10, 8, 10 |
+
+| Code | Finding |
+|---|---|
+| L1 | A shared model and prompt does not reproduce the rule-based monoculture exactly, but it fails too. With thinking off, the agents mostly all stay home, with an occasional week when all 20 go. The bar is seldom crowded, and mean reward is 5.3 good nights in 50, against 16.2 for the diverse rule-based agents. |
+| L2 | With thinking on, the shared agents swing on a two-week cycle, high after low and low after high, which is the monoculture pattern from Arthur (1994) with some spread. Half the weeks are crowded. One seed only. |
+| L3 | Varied prompts is the only condition that restores the diverse outcome. Attendance stays near but under the threshold in every seed, with an SD close to the diverse rule-based agents, and mean reward (18.6) is above theirs (16.2), with fewer crowded weeks (0.17 against 0.34). |
+| L4 | Private information makes the agents cautious more than diverse. Crowded weeks are the fewest of any condition (0.06), but attendance is low and so is reward. Reward is the most equal (Gini 0.17). |
+| L5 | Thinking costs 8 to 9 times the tokens and about 60 times the time per call. On seed 0 it moved attendance up to the threshold in both conditions and made half the weeks crowded. Whether that holds needs more seeds. |
+
+Not yet done: `varied_models` (needs a second model that fits on the GPU), and more thinking-on seeds.
 
 ## Sources
 
